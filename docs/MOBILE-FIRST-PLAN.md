@@ -4,7 +4,7 @@
 > 适用范围：后续功能开发、性能优化、发布与测试。
 > 结论：**手机端优先；桌面端进入维护模式，不再投入新功能。**
 >
-> 2026-10-30 执行结果：源码已提交推送；release HAP 已可用；Android release keystore 已建立并完成离线备份验证；播放回归测试 40 项；AVSession 已节流到约 1s；Android/HarmonyOS web CI 已加入；HarmonyOS 真实播放 E2E 通过。HarmonyOS 正式证书决定暂缓，当前定位为**自用 release 包**；Android 真机与物理 USB 备份仍待硬件接入。
+> 2026-10-30 执行结果：源码已提交推送；release HAP 已可用；Android release keystore 已建立并完成离线备份验证；播放回归测试 40 项；AVSession 已节流到约 1s；Android/HarmonyOS web CI 已加入；HarmonyOS 真实播放 E2E 通过；Android 正式 APK 已完成真机安装/启动验收。HarmonyOS 正式证书决定暂缓，当前定位为**自用 release 包**；Android 实际播放与物理 USB 备份仍待补测。
 
 ## 一、端优先级
 
