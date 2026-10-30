@@ -1,0 +1,61 @@
+name: HarmonyOS HAP (self-hosted)
+
+# Builds the actual HAP on a Windows runner that has DevEco Studio installed.
+# GitHub-hosted runners cannot build ArkTS/HAP without the HarmonyOS SDK.
+#
+# Runner requirements:
+#   labels: self-hosted, windows, harmonyos
+#   DevEco Studio at C:\Program Files\Huawei\DevEco Studio
+#   a local platform/HarmonyOSPhone/build-profile.json5 with a valid signingConfig
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  build-hap:
+    name: HarmonyOS release HAP
+    if: ${{ github.event_name == 'workflow_dispatch' || vars.BIU_HARMONY_SELF_HOSTED == 'true' }}
+    runs-on: [self-hosted, windows, harmonyos]
+    timeout-minutes: 30
+    env:
+      DEVECO_HOME: C:\Program Files\Huawei\DevEco Studio
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Build release HAP
+        run: npm run harmony:phone:release
+
+      - name: Verify artifact
+        shell: pwsh
+        run: |
+          $hap = 'release/biu-2.0.0-harmony-phone-release.hap'
+          if (-not (Test-Path $hap)) { throw "missing $hap" }
+          Get-FileHash $hap -Algorithm SHA256
+
+      - name: Upload HAP
+        uses: actions/upload-artifact@v4
+        with:
+          name: harmony-hap
+          path: |
+            release/biu-2.0.0-harmony-phone-release.hap
+            release/biu-2.0.0-harmony-phone-release.hap.sha256
+          if-no-files-found: error
+          retention-days: 14

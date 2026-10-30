@@ -25,6 +25,8 @@
     "check": "npm run typecheck && npm run verify && npm run lint && npm run test",
     "smoke": "electron scripts/smoke",
     "smoke:harmony": "node scripts/smoke-harmony-device.mjs",
+    "smoke:android": "node scripts/smoke-android-device.mjs",
+    "e2e:harmony": "node scripts/e2e-harmony-playback.mjs",
     "build": "vite build && npm run copy-preload",
     "preview": "vite preview",
     "copy-preload": "node -e \"const fs=require('fs');for(const f of ['preload.cjs','tray-preload.cjs'])fs.cpSync('electron/'+f,'dist-electron/'+f);fs.cpSync('electron/icon.png','dist-electron/icon.png');if(fs.existsSync('electron/tray.png'))fs.cpSync('electron/tray.png','dist-electron/tray.png')\"",

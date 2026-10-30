@@ -98,6 +98,24 @@ npm run smoke:harmony -- --skip-install
 
 脚本会检查进程存活、页面文本（搜索/歌单/设置/正在播放），布局 dump 写入 `.archive/smoke/layout.json`。
 
+## 真实播放 E2E
+
+```powershell
+npm run e2e:harmony -- --skip-install
+```
+
+当前 E2E 覆盖：
+
+- 搜索并打开 100P 集合的 P1
+- 播放页进度前进
+- seek 到 75%
+- 音频服务 `HpaeSinkInputNode` 进入 RUNNING（输出活跃证据）
+- Home 后台进程存活
+- 通知栏媒体卡暂停（AVSession `SetAVPlaybackState:3`）
+- 无 `[biu-audio] playback error` / jscrash
+
+CDN 403 的 DASH→渐进流→原生缓存回退由 40 个单测覆盖；尚未在设备上制造真实 CDN 故障。结果写入 `.archive/e2e/summary.json`。
+
 新克隆或换机时：
 
 1. 复制 `build-profile.template.json5` 为 `build-profile.json5`；
