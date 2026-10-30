@@ -1,0 +1,52 @@
+{
+  "string": [
+    {
+      "name": "module_desc",
+      "value": "biu desktop music player"
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "biu"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "biu"
+    },
+    {
+      "name": "BrowserAbility_desc",
+      "value": "description"
+    },
+    {
+      "name": "BrowserAbility_label",
+      "value": "BrowserAbility"
+    },
+    {
+      "name": "button_ok",
+      "value": "ok"
+    },
+    {
+      "name": "button_cancel",
+      "value": "cancel"
+    },
+    {
+      "name": "StatusBarEntryAbility_desc",
+      "value": "biu status bar"
+    },
+    {
+      "name": "StatusBarEntryAbility_label",
+      "value": "biu"
+    },
+    {
+      "name": "StatelessAbility_desc",
+      "value": "biu stateless window"
+    },
+    {
+      "name": "StatelessAbility_label",
+      "value": "StatelessAbility"
+    },
+    {
+      "name": "OpenNewWindow_label",
+      "value": "Open New Window"
+    }
+  ]
+}

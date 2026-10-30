@@ -1,0 +1,39 @@
+# NOTICE
+
+biu
+Copyright (c) 2026 Hanversion
+
+biu 的源代码以 MIT License 发布，完整文本见 [LICENSE](./LICENSE)。
+
+## 第三方组件
+
+本项目在构建时使用并在运行时包含以下第三方软件。各组件保留其原始版权与许可：
+
+| 组件 | 许可 | 说明 |
+| --- | --- | --- |
+| Electron | MIT | 桌面运行时；其内置 Chromium 使用 BSD 3-Clause 等许可 |
+| Chromium | BSD 3-Clause 及第三方许可 | 由 Electron 分发 |
+| React / React DOM | MIT | 渲染层 |
+| React Router | MIT | 路由 |
+| framer-motion | MIT | 动效 |
+| lucide-react | ISC | 图标 |
+| qrcode | MIT | 扫码登录二维码 |
+| Tailwind CSS | MIT | 样式构建 |
+| Inter | SIL Open Font License 1.1 | `src/assets/fonts/Inter-OFL.txt` |
+| Noto Sans CJK | SIL Open Font License 1.1 | 使用系统字体，不分发字体文件 |
+
+构建工具链（Vite、TypeScript、electron-builder、Vitest 等）仅用于构建，不随应用分发。
+
+## HarmonyOS PC 目录
+
+`platform/HarmonyOS` 包含华为提供的 Electron/ArkTS 适配示例、运行时文件以及参考文档（PDF、ZIP）。这些内容由华为按其自身许可与条款提供，**不属于** biu MIT 许可的授权范围；再分发或商用前请自行核对华为的许可条款。
+
+## 内容与商标
+
+- biu 与 Bilibili、华为、华为音乐及相关服务提供方没有从属、授权或商业合作关系。
+- 项目不内置任何音频、视频、歌词或封面资源；相关内容在运行时从公开接口获取，版权归原权利人所有。
+- “Bilibili”“HarmonyOS”“华为音乐”等名称与标识归各自权利人所有。
+
+## 第三方服务
+
+播放器在运行时会按用户操作访问 Bilibili 接口，并在匹配歌词/封面时访问网易云音乐、QQ 音乐、iTunes、酷狗等公开接口。使用时应遵守对应平台的服务条款与当地法律法规。

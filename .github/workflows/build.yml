@@ -1,0 +1,118 @@
+name: Build Multi-Platform
+
+# 三平台 × 多架构打包 + 发布元数据。
+# 每个 OS 一个 job，单次 electron-builder 调用构建该 OS 全部架构 —— 这样每个 OS 只产出
+# 一个含多架构 files 数组的 latest*.yml，避免多 job 覆盖。
+# 触发：推送 v* tag，或手动运行（workflow_dispatch，仅构建产物、不发布）。
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            args: --win --x64 --ia32 --arm64
+          - os: macos-latest
+            args: --mac --x64 --arm64
+          - os: ubuntu-latest
+            args: --linux --x64 --arm64
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck renderer & main process
+        # vite/esbuild 只剥离类型不做校验；这里显式跑 tsc，类型错误不再静默进包
+        run: npm run typecheck
+
+      - name: Verify IPC & window security
+        # 零依赖静态门禁：IPC 通道对齐、敏感 handler 校验、禁止 Node 全开窗口
+        run: npm run verify
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit tests
+        # WBI 签名、音质阶梯、歌词清洗、资料库导入导出、多 P 映射
+        run: npm test
+
+      - name: Build renderer & main process
+        run: npm run build
+
+      - name: Smoke test (Linux)
+        # 真实 Electron + 真实 dist/preload，隐藏窗口跑首屏与托盘
+        if: runner.os == 'Linux'
+        run: xvfb-run --auto-servernum npm run smoke
+        env:
+          BIU_SMOKE_NO_SANDBOX: '1'
+
+      - name: Package (生成各架构安装包 + latest*.yml + blockmap)
+        # --publish never 不上传，但仍生成 latest*.yml 与 blockmap，由 release job 统一发布
+        run: npx electron-builder ${{ matrix.args }} --publish never
+        env:
+          # 未配置签名 secrets 时 electron-builder 会构建未签名包。
+          # Windows 用 WIN_CSC_*，macOS 用 CSC_*（两者证书类型不同，不能共用）。
+          WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+          WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
+          CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ matrix.os }}
+          path: |
+            release/*.exe
+            release/*.dmg
+            release/*.zip
+            release/*.AppImage
+            release/*.deb
+            release/*.yml
+            release/*.blockmap
+          if-no-files-found: ignore
+          retention-days: 14
+
+  release:
+    name: Publish GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - name: Download packaged artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
+
+      - name: Publish release assets
+        # latest*.yml + 安装包 + blockmap 一并发布，供手动下载与后续更新接入
+        uses: softprops/action-gh-release@v2
+        with:
+          name: biu ${{ github.ref_name }}
+          tag_name: ${{ github.ref_name }}
+          generate_release_notes: true
+          prerelease: ${{ contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') || contains(github.ref_name, 'rc') }}
+          files: release-assets/**
