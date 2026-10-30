@@ -1,38 +1,37 @@
-# biu · Wave App Icon
+# biu · Negative-Space B · Long Shadow
 
 ## Direction
 
-- Full-bleed / squircle rose field, with a subtle same-hue gradient and a soft
-  deep-rose shadow for depth.
-- One continuous white **sound-wave signal**:
-  - enters beyond the left edge and leaves beyond the right edge;
-  - fine 50/1024 core, with a soft white bloom and a brighter inner glow;
-  - three oscillations with a gentle frequency rise and amplitude envelope.
-- No text, note glyph, mascot or secondary marks.
-- The signal remains readable at 48 px and feels like light/motion at 1024 px.
+- Flat Bilibili-style rose field `#FB7299`.
+- White **lowercase b** formed by a thick ring, a straight stem and a
+  negative-space counter; a white dot sits in the counter.
+- A crisp 45° long shadow in `#E0517C` gives the mark depth without gradients.
+- The bottom-right “AI生成” watermark from the reference is removed by
+  extracting the white artwork and rebuilding the field/shadow from scratch.
 
 ## Palette
 
 | Role | Hex |
 | --- | --- |
-| Background | `#FF5C93` |
-| Wave | `#FFFFFF` |
+| Background | `#FB7299` |
+| White mark | `#FFFFFF` |
+| Long shadow | `#E0517C` |
 
 ## Files
 
-- `biu-icon-1024-rounded.png` — main app icon, 1024×1024
-- `biu-icon-1024.png` — full-bleed master for platform masking
+- `source-logo-ai.png` — supplied reference (watermarked; generator input)
+- `biu-icon-1024-rounded.png` — main app icon
+- `biu-icon-1024.png` — full-bleed square master
 - `biu-icon-512.png` / `-192` / `-180` / `-128` / `-64` / `-48`
-- `biu-foreground-1024.png` — adaptive foreground, wave only
-- `biu-background-1024.png` — adaptive pink background
-- `biu-notification-192.png` — white-alpha notification wave
-- `biu-icon.svg` — vector rounded icon with wave path
-- `biu-icon-master-2048.png` — supersampled master
-- `generate-biu-icon.py` — reproducible Pillow generator
+- `biu-foreground-1024.png` — transparent mark + long shadow for adaptive icons
+- `biu-background-1024.png` — flat rose background
+- `biu-notification-192.png` — white-alpha notification mark
+- `biu-icon.svg` — embedded vector wrapper
+- `generate-biu-icon.py` — watermark removal + all-platform sync
 
-## Usage
+## Platforms
 
-The generator syncs the wave into:
+The generator syncs the logo into:
 
 - Electron `electron/icon.png`, `tray.png`, `icon*.svg`
 - Web `src/assets/icon.png`
@@ -44,6 +43,6 @@ The generator syncs the wave into:
 
 ```bash
 python3 -m venv .icon-venv
-.icon-venv/bin/pip install pillow
+.icon-venv/bin/pip install pillow numpy
 .icon-venv/bin/python icons/generate-biu-icon.py
 ```
