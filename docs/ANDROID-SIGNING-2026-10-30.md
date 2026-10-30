@@ -38,7 +38,7 @@ release/biu-2.0.0-android.apk
 
 ```text
 release/biu-2.0.0-android.apk
-SHA-256: f0506172f59028705d5c198b540d034b4e40c3d5198261f30dbe972b453da48e
+SHA-256: 69b9391ae72c53ab483c0708087582cf3422c8b14001f8d1ae8235779121405e
 cert: CN=biu release
 ```
 

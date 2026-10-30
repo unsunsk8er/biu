@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """Generate the flat biu icon: hot-pink field + one designed sound wave.
 
 The mark is one continuous audio-wave pulse:
@@ -20,14 +20,14 @@ PROJECT = ROOT.parent
 S = 2048
 PINK = (255, 92, 147, 255)
 WHITE = (255, 255, 255, 255)
-WAVE_STROKE = 0.102  # base thickness relative to canvas
+WAVE_STROKE = 0.057  # base thickness relative to canvas
 WAVE_X0 = 0.16
 WAVE_X1 = 0.84
 WAVE_AMPLITUDE = 0.193
 WAVE_CYCLES = 2.0
 WAVE_CHIRP = 1.0
 WAVE_ENVELOPE = 0.78
-WAVE_TAPER = 0.35
+WAVE_TAPER = 0.15
 
 
 def squircle_mask(size: int, ratio: float = 0.225) -> Image.Image:
