@@ -3,6 +3,7 @@ export interface Track {
   title: string
   artist: string
   coverUrl: string
+  album?: string
   // 已通过第三方曲库匹配到专辑封面；后续音频源不再用视频截图覆盖
   coverMatched?: boolean
   // 已通过第三方曲库匹配到歌名/歌手；自动匹配只执行一次

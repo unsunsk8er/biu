@@ -17,6 +17,7 @@ import {
   type UpVideo,
 } from '@/services/api'
 import type { Track } from '@/types'
+import { EASE_OUT, MOTION_BASE, MOTION_FAST, springSnappy } from '@/utils/motion'
 
 type SearchType = 'video' | 'user'
 type SelectedUser = { mid: number; name: string; avatar: string }
@@ -66,12 +67,17 @@ function loadVideoDetail(bvid: string): Promise<VideoDetail> {
 
 const listMotion = {
   initial: { opacity: 0 },
-  animate: { opacity: 1, transition: { staggerChildren: 0.035, delayChildren: 0.03 } },
+  animate: { opacity: 1, transition: { staggerChildren: 0.012, delayChildren: 0 } },
 }
 
 const itemMotion = {
-  initial: { opacity: 0, y: 12, scale: 0.985 },
-  animate: { opacity: 1, y: 0, scale: 1 },
+  initial: { opacity: 0, y: 8, scale: 0.995 },
+  animate: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: { duration: MOTION_FAST, ease: EASE_OUT },
+  },
 }
 
 function getScrollParent(element: HTMLElement | null): HTMLElement | null {
@@ -491,7 +497,7 @@ export default function SearchPage() {
 
       <AnimatePresence mode="wait">
         {selectedUser ? (
-          <motion.div key="user-space" initial={{ opacity: 0, x: 28 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -18 }} transition={{ duration: 0.28 }}>
+          <motion.div key="user-space" initial={{ opacity: 0, x: 18 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -12 }} transition={{ duration: MOTION_BASE, ease: EASE_OUT }}>
             <UserSpaceView user={selectedUser} onBack={() => setSelectedUser(null)} />
           </motion.div>
         ) : loading ? (
@@ -570,7 +576,7 @@ function TypeTab({ active, icon, label, onClick }: { active: boolean; icon: Reac
       role="tab"
       aria-selected={active}
     >
-      {active && <motion.span className="apple-search-tab__pill" layoutId="search-tab-pill" transition={{ type: 'spring', stiffness: 420, damping: 34 }} />}
+    {active && <motion.span className="apple-search-tab__pill" layoutId="search-tab-pill" transition={springSnappy} />}
       <span className="apple-search-tab__content">
         {icon}
         {label}
@@ -639,7 +645,7 @@ function VideoRow({ track, subtitle, durationText }: {
         variants={itemMotion}
         whileHover={{ y: -1 }}
         whileTap={{ scale: 0.995 }}
-        transition={{ duration: 0.18 }}
+        transition={{ duration: MOTION_FAST }}
       >
         <div className="apple-search-cover">
           <CoverArtwork src={track.coverUrl} alt={track.title} iconSize={20} />
@@ -678,7 +684,7 @@ function UserCard({ user, onEnter }: { user: UserResult; onEnter: () => void }) 
       variants={itemMotion}
       whileHover={{ y: -1 }}
       whileTap={{ scale: 0.995 }}
-      transition={{ duration: 0.18 }}
+      transition={{ duration: MOTION_FAST }}
     >
       <div className="apple-search-avatar">
         <CoverArtwork src={user.avatar} alt={user.name} iconSize={22} fallback={<Users size={22} />} />
@@ -768,7 +774,7 @@ function UserSpaceView({ user, onBack }: { user: SelectedUser; onBack: () => voi
 
   return (
     <section className="apple-user-space">
-      <motion.div className="apple-user-hero" initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.32 }}>
+      <motion.div className="apple-user-hero" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: MOTION_BASE, ease: EASE_OUT }}>
         <button type="button" className="apple-user-back" onClick={onBack} title="返回">
           <ArrowLeft size={19} />
         </button>

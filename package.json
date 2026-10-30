@@ -33,6 +33,8 @@
     "build:appimage": "npm run build && electron-builder --linux AppImage --x64 --publish never",
     "harmony:prepare": "npm run build && node scripts/prepare-harmony.mjs",
     "harmony:build": "npm run harmony:prepare && node scripts/build-harmony.mjs",
+    "harmony:phone:prepare": "node scripts/build-harmony-web.mjs && node scripts/prepare-harmony-phone.mjs",
+    "harmony:phone:build": "npm run harmony:phone:prepare && node scripts/build-harmony-phone.mjs",
     "android:prepare": "node scripts/prepare-android.mjs",
     "android:build": "npm run android:prepare && node scripts/build-android.mjs assembleDebug",
     "android:release": "npm run android:prepare && node scripts/build-android.mjs assembleRelease"
@@ -62,6 +64,7 @@
     "vite": "^6.3.0",
     "vite-plugin-electron": "^0.29.1",
     "vite-plugin-electron-renderer": "^0.14.7",
+    "vite-plugin-singlefile": "^2.3.4",
     "vitest": "^5.0.5",
     "wait-on": "^8.0.0"
   },

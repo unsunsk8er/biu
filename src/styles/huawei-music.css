@@ -1333,6 +1333,17 @@ html[data-biu-mobile] .settings-page .settings-cache-location code {
   color: var(--hw-text-3) !important;
 }
 
+.settings-quality-note {
+  margin: 0;
+  padding: 0 18px 12px;
+  font-size: 11.5px;
+  line-height: 1.55;
+}
+
+html[data-biu-mobile] .settings-quality-note {
+  padding: 0 14px 10px;
+}
+
 /* ===== Download / playlist ===== */
 
 .download-dashboard {
@@ -2250,12 +2261,15 @@ html[data-biu-mobile] .playlist-grid {
 /* ===== Light comments drawer ===== */
 
 [data-theme="light"] .now-playing-comments {
-  background: rgba(255, 255, 255, 0.97) !important;
+  /* Solid, not translucent: the phone comments panel sits on a rounded
+     dark cover frame, and rgba white let that frame bleed through the
+     anti-aliased corners as four black smudges. */
+  background: #fff !important;
   border: 1px solid rgba(28, 28, 30, 0.08) !important;
-  box-shadow: 0 30px 80px rgba(28, 28, 30, 0.18) !important;
+  box-shadow: 0 10px 28px rgba(28, 28, 30, 0.1) !important;
   color: var(--hw-text);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 
 [data-theme="light"] .now-playing-comments::before {
@@ -3653,6 +3667,10 @@ html[data-biu-mobile] .now-playing-cover-comments {
   background: rgba(13, 13, 17, 0.96);
 }
 
+[data-theme="light"] .now-playing-cover-comments {
+  background: #fff !important;
+}
+
 html[data-biu-mobile] .now-playing-cover-comments .now-playing-comments {
   position: absolute !important;
   inset: 0 !important;
@@ -4606,7 +4624,7 @@ html[data-biu-tablet] .am-player-bar {
   box-shadow: 0 20px 54px rgba(20, 20, 26, 0.3);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  animation: app-select-menu-in 150ms ease-out;
+  animation: app-select-menu-in var(--duration-fast) var(--easing-default);
 }
 
 .app-select__handle {
@@ -4666,14 +4684,15 @@ html[data-biu-tablet] .am-player-bar {
 }
 
 @keyframes app-select-menu-in {
-  from { opacity: 0; transform: translateY(-4px) scale(0.99); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 html[data-biu-mobile] .app-select__layer {
   background: rgba(0, 0, 0, 0.44);
   backdrop-filter: blur(3px);
   -webkit-backdrop-filter: blur(3px);
+  animation: biu-overlay-in var(--duration-fast) var(--easing-default);
 }
 
 html[data-biu-mobile] .app-select__menu {
@@ -4686,7 +4705,7 @@ html[data-biu-mobile] .app-select__menu {
   padding: 6px 10px 12px !important;
   border-radius: 20px !important;
   box-shadow: 0 24px 64px rgba(0, 0, 0, 0.42) !important;
-  animation: app-select-sheet-in 180ms cubic-bezier(0.22, 1, 0.36, 1);
+  animation: app-select-sheet-in var(--duration-fast) var(--easing-default);
 }
 
 html[data-biu-mobile] .app-select__handle {
@@ -5367,7 +5386,7 @@ html[data-biu-mobile] .playlist-grid {
   flex-direction: column !important;
   align-items: center !important;
   gap: 12px !important;
-  animation: login-dialog-in 180ms cubic-bezier(0.22, 1, 0.36, 1);
+  animation: login-dialog-in var(--duration-fast) var(--easing-default);
 }
 
 .login-dialog .playlist-dialog__head {
@@ -5477,8 +5496,8 @@ html[data-biu-mobile] .playlist-grid {
 }
 
 @keyframes login-dialog-in {
-  from { opacity: 0; transform: translateY(8px) scale(0.98); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 /* WebView occasionally fails to paint native placeholders inside transformed
@@ -5741,7 +5760,8 @@ html[data-biu-mobile] .am-queue-panel.is-player-bar {
   border-radius: 20px;
   background: var(--hw-card);
   color: var(--hw-text);
-  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.38);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.28);
+  contain: layout;
 }
 
 .video-parts-dialog__head {
@@ -5794,6 +5814,7 @@ html[data-biu-mobile] .am-queue-panel.is-player-bar {
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: 8px;
+  contain: layout paint;
 }
 
 .video-parts-row {
@@ -5807,6 +5828,8 @@ html[data-biu-mobile] .am-queue-panel.is-player-bar {
   border: 0;
   border-radius: 11px;
   background: transparent;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 52px;
   color: var(--hw-text);
   font-family: var(--font-body);
   text-align: left;
@@ -5857,6 +5880,12 @@ html[data-biu-mobile] .video-parts-dialog {
   border-radius: 22px 22px 0 0;
   border-bottom: 0;
   padding-bottom: var(--biu-inset-bottom, 0px);
+  box-shadow: 0 -10px 32px rgba(0, 0, 0, 0.2);
+}
+
+html[data-biu-mobile] .video-parts-row {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 55px;
 }
 html[data-biu-mobile] .video-parts-dialog__head { padding: 18px 18px 13px; }
 html[data-biu-mobile] .video-parts-row { min-height: 55px; }
@@ -6428,3 +6457,142 @@ html[data-biu-mobile] .apple-search-panel {
   padding: 12px;
   border-radius: 16px;
 }
+
+/* =========================================================
+   Mobile motion budget
+   Shorter, compositor-only transitions; hover motion is removed
+   on touch devices so a tap never leaves a card lifted/scaled.
+   ========================================================= */
+
+html[data-render-mode="mobile"] {
+  --duration-fast: 100ms;
+  --duration-normal: 160ms;
+  --duration-slow: 240ms;
+  --easing-default: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* One timing system for every CSS-driven interaction. JS-driven sheets use
+   the same 120/180ms presets through MotionConfig. Keep this off generic
+   containers: setting a duration on `*` would make the initial
+   transition-property:all animate every layout change. */
+:where(
+  button,
+  a,
+  input,
+  textarea,
+  select,
+  [role="button"],
+  .track-row,
+  .playlist-card,
+  .album-card,
+  .am-feature-card,
+  .am-track-row,
+  .nav-item,
+  .mobile-nav-item,
+  .player-bar,
+  .settings-row,
+  .sidebar,
+  .mobile-nav,
+  .now-playing,
+  .playlist-dialog,
+  .video-parts-dialog,
+  .add-playlist-popover
+) {
+  transition-duration: var(--duration-fast) !important;
+  transition-timing-function: var(--easing-default) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :where(
+    button,
+    a,
+    input,
+    textarea,
+    select,
+    [role="button"],
+    .track-row,
+    .playlist-card,
+    .album-card,
+    .am-feature-card,
+    .am-track-row,
+    .nav-item,
+    .mobile-nav-item,
+    .player-bar,
+    .settings-row,
+    .sidebar,
+    .mobile-nav,
+    .now-playing,
+    .playlist-dialog,
+    .video-parts-dialog,
+    .add-playlist-popover
+  ) {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Remaining plain-DOM popups use the same entrance as the Framer layers. */
+@keyframes biu-overlay-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes biu-dialog-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes biu-popover-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.playlist-manage-backdrop,
+.login-dialog-backdrop {
+  animation: biu-overlay-in var(--duration-fast) var(--easing-default);
+}
+
+.playlist-manage-dialog {
+  animation: biu-dialog-in var(--duration-fast) var(--easing-default);
+}
+
+.sidebar-account-popover {
+  transform-origin: bottom;
+  animation: biu-popover-in var(--duration-fast) var(--easing-default);
+}
+
+html[data-render-mode="mobile"] :where(
+  button,
+  a,
+  .track-row,
+  .playlist-card,
+  .album-card,
+  .am-feature-card,
+  .am-card,
+  .nav-item,
+  .mobile-nav-item,
+  .player-bar
+) {
+  transition-duration: var(--duration-fast);
+  transition-timing-function: var(--easing-default);
+}
+
+@media (hover: none) {
+  .track-row:hover,
+  .playlist-card:hover,
+  .album-card:hover,
+  .am-feature-card:hover,
+  .am-card:hover {
+    transform: none !important;
+  }
+
+  .track-row:active,
+  .playlist-card:active,
+  .album-card:active,
+  .am-feature-card:active {
+    transform: scale(0.992);
+    transition-duration: 80ms;
+  }
+}
+

@@ -16,13 +16,7 @@ import { usePlayer } from '@/contexts/PlayerContext'
 import CoverArtwork from '@/components/CoverArtwork'
 import { useAddToPlaylist } from '@/contexts/AddToPlaylistContext'
 import type { Track } from '@/types'
-
-const panelSpring = {
-  type: 'spring',
-  stiffness: 330,
-  damping: 28,
-  mass: 0.8,
-} as const
+import { MOTION_FAST, panelTransition, springPanel } from '@/utils/motion'
 
 export default function PlayQueue({
   open,
@@ -96,6 +90,7 @@ export default function PlayQueue({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            transition={{ duration: MOTION_FAST }}
             onClick={onClose}
             style={{
               position: 'fixed',
@@ -107,10 +102,10 @@ export default function PlayQueue({
 
           <motion.div
             className={`am-queue-panel is-${placement}`}
-            initial={{ opacity: 0, y: 22, scale: 0.96 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 18, scale: 0.96 }}
-            transition={panelSpring}
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 8 }}
+            transition={panelTransition}
             onClick={(e) => e.stopPropagation()}
             style={{
               position: 'fixed',
@@ -199,14 +194,14 @@ export default function PlayQueue({
                   {queue.map((track, index) => (
                     <motion.div
                       key={track.id}
-                      layout
-                      initial={{ opacity: 0, height: 0, y: 6 }}
+                      layout="position"
+                      initial={{ opacity: 0, height: 0, y: 4 }}
                       animate={{ opacity: 1, height: 'auto', y: 0 }}
-                      exit={{ opacity: 0, height: 0, y: -4 }}
+                      exit={{ opacity: 0, height: 0, y: -3 }}
                       transition={{
-                        opacity: { duration: 0.18 },
-                        height: { duration: 0.2 },
-                        layout: { type: 'spring', bounce: 0.16, duration: 0.45 },
+                        opacity: { duration: MOTION_FAST },
+                        height: { duration: MOTION_FAST },
+                        layout: springPanel,
                       }}
                     >
                       <QueueRow
@@ -241,7 +236,7 @@ export default function PlayQueue({
                   initial={{ height: 0, opacity: 0 }}
                   animate={{ height: 'auto', opacity: 1 }}
                   exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.22 }}
+                  transition={{ duration: MOTION_FAST }}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -354,7 +349,7 @@ function QueueRow({
       onMouseLeave={() => setHover(false)}
       whileHover={{ backgroundColor: selected || isCurrent ? 'var(--queue-row-hover-strong)' : 'var(--queue-row-hover)' }}
       whileTap={{ scale: 0.992 }}
-      transition={{ duration: 0.16 }}
+      transition={{ duration: MOTION_FAST }}
       style={{
         position: 'relative',
         display: 'flex',
@@ -377,7 +372,7 @@ function QueueRow({
         ) : (
           <motion.span
             animate={{ opacity: hover ? 1 : 0, x: hover ? 0 : -2 }}
-            transition={{ duration: 0.16 }}
+            transition={{ duration: MOTION_FAST }}
             style={{ color: 'var(--queue-text-3)', display: 'flex', cursor: 'grab' }}
             title="拖拽调整顺序"
           >
@@ -407,7 +402,7 @@ function QueueRow({
         />
         <motion.div
           animate={{ opacity: hover ? 1 : 0 }}
-          transition={{ duration: 0.16 }}
+          transition={{ duration: MOTION_FAST }}
           style={{
             position: 'absolute',
             inset: 0,
@@ -459,7 +454,7 @@ function QueueRow({
             initial={{ opacity: 0, x: 8 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: 8 }}
-            transition={{ duration: 0.16 }}
+            transition={{ duration: MOTION_FAST }}
             style={{ display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}
           >
             <IconButton
@@ -595,7 +590,7 @@ function IconButton({
         color: danger ? 'var(--color-destructive)' : 'var(--queue-text)',
       }}
       whileTap={disabled ? undefined : { scale: 0.9 }}
-      transition={{ duration: 0.16 }}
+      transition={{ duration: MOTION_FAST }}
       style={{
         width: 26,
         height: 26,

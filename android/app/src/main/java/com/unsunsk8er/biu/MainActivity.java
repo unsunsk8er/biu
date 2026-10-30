@@ -73,6 +73,15 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
+        // Mate 70 Pro / HarmonyOS 7 等三挖孔屏：允许内容延伸到短边挖孔区域，
+        // 具体安全距离仍由下面的 WindowInsets（statusBars + displayCutout）注入。
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            android.view.WindowManager.LayoutParams attrs = getWindow().getAttributes();
+            attrs.layoutInDisplayCutoutMode =
+                android.view.WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
+            getWindow().setAttributes(attrs);
+        }
+
         Log.i(TAG, "device=" + Build.MANUFACTURER + "/" + Build.BRAND + " model=" + Build.MODEL
             + " release=" + Build.VERSION.RELEASE + " sdk=" + Build.VERSION.SDK_INT);
         try {

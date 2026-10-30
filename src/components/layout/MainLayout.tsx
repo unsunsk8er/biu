@@ -7,9 +7,12 @@ import PlayerBar from './PlayerBar'
 import MobileNav from './MobileNav'
 import MobilePlayerBar from './MobilePlayerBar'
 import NowPlaying from '@/components/NowPlaying'
-import { isAndroidApp, isLargeScreen } from '@/utils/mobile'
+import MediaSessionSync from '@/components/MediaSessionSync'
+import { isAndroidApp, isLargeScreen, isMobileApp } from '@/utils/mobile'
 import { useNowPlaying } from '@/contexts/NowPlayingContext'
 import { useAuth } from '@/contexts/AuthContext'
+
+const MAIN_PAGES = new Set(['/search', '/playlists', '/downloads', '/settings'])
 
 function hasFocusedTextInput(): boolean {
   const active = document.activeElement
@@ -25,12 +28,13 @@ export default function MainLayout() {
   const { showLogin, setShowLogin } = useAuth()
   const [isFullscreen, setIsFullscreen] = useState(false)
   const android = isAndroidApp()
-  const [largeScreen, setLargeScreen] = useState(() => android && isLargeScreen())
-  const phone = android && !largeScreen
+  const mobileShell = isMobileApp()
+  const [largeScreen, setLargeScreen] = useState(() => mobileShell && isLargeScreen())
+  const phone = mobileShell && !largeScreen
   const { expanded, close } = useNowPlaying()
 
   useEffect(() => {
-    if (!android) return
+    if (!mobileShell) return
     const syncLayout = () => {
       const large = isLargeScreen()
       // A soft keyboard may resize the WebView. Never collapse a tablet into
@@ -74,7 +78,6 @@ export default function MainLayout() {
   // delegates here. Resolve in-app layers first; only the four main tabs send
   // the task to the background, keeping the WebView/audio process alive.
   useEffect(() => {
-    const MAIN_PAGES = new Set(['/search', '/playlists', '/downloads', '/settings'])
     const handler = (): 'handled' | 'background' | 'fallback' => {
       const active = document.activeElement
       if (active instanceof HTMLElement) {
@@ -122,6 +125,17 @@ export default function MainLayout() {
     }
   }, [pathname, expanded, close, navigate, showLogin, setShowLogin])
 
+  // HarmonyOS root-page back must fall through to the system so the side-back
+  // gesture returns to the launcher. In-app pages (including Now Playing) keep
+  // consuming it in ArkUI and resolve through __biuBackPressed.
+  useEffect(() => {
+    const cleanPath = pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname
+    const atRoot = !expanded && (
+      MAIN_PAGES.has(cleanPath) || cleanPath === '/recent' || cleanPath === '/favorites'
+    )
+    window.BiuHarmony?.setBackMode(atRoot)
+  }, [pathname, expanded])
+
   return (
     <div
       className={`app-shell ${isFullscreen ? 'is-fullscreen' : ''} ${phone ? 'is-mobile' : ''}`}
@@ -133,8 +147,8 @@ export default function MainLayout() {
         background: 'var(--color-background)',
       }}
     >
-      {!android && <TitleBar />}
-      {!android && <WindowResizeHandles />}
+      {!mobileShell && <TitleBar />}
+      {!mobileShell && <WindowResizeHandles />}
 
       <div
         className="app-body"
@@ -159,7 +173,7 @@ export default function MainLayout() {
             padding: '20px 24px 24px',
           }}
         >
-          <Outlet key={android ? (largeScreen ? 'tablet' : 'phone') : 'desktop'} />
+          <Outlet key={mobileShell ? (largeScreen ? 'tablet' : 'phone') : 'desktop'} />
         </main>
       </div>
 
@@ -168,6 +182,7 @@ export default function MainLayout() {
       {phone && !expanded && <MobileNav />}
 
       <NowPlaying />
+      <MediaSessionSync />
     </div>
   )
 }

@@ -1,4 +1,5 @@
 import { lazy, Suspense } from 'react'
+import { MotionConfig } from 'framer-motion'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { PlayerProvider } from '@/contexts/PlayerContext'
 import { NowPlayingProvider } from '@/contexts/NowPlayingContext'
@@ -6,6 +7,7 @@ import { AuthProvider, useAuth } from '@/contexts/AuthContext'
 import { AddToPlaylistProvider } from '@/contexts/AddToPlaylistContext'
 import MainLayout from '@/components/layout/MainLayout'
 import { isAndroidApp } from '@/utils/mobile'
+import { EASE_OUT, MOTION_BASE } from '@/utils/motion'
 
 const SearchPage = lazy(() => import('@/pages/Search'))
 const Recent = lazy(() => import('@/pages/Recent'))
@@ -42,6 +44,10 @@ function GlobalLoginDialog() {
 
 export default function App() {
   return (
+    <MotionConfig
+      reducedMotion="user"
+      transition={{ duration: MOTION_BASE, ease: EASE_OUT }}
+    >
     <AuthProvider>
       <PlayerProvider>
         <NowPlayingProvider>
@@ -67,5 +73,6 @@ export default function App() {
         </NowPlayingProvider>
       </PlayerProvider>
     </AuthProvider>
+    </MotionConfig>
   )
 }

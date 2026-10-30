@@ -2,6 +2,15 @@ export function isAndroidApp(): boolean {
   return typeof navigator !== 'undefined' && /\bBiuAndroid\b/.test(navigator.userAgent)
 }
 
+export function isHarmonyApp(): boolean {
+  return typeof navigator !== 'undefined' && /\bBiuHarmony\b/.test(navigator.userAgent)
+}
+
+/** Android APK or the ArkWeb HAP shell: both use the phone layout. */
+export function isMobileApp(): boolean {
+  return isAndroidApp() || isHarmonyApp()
+}
+
 /**
  * Use the stable physical screen dimensions for the large-screen decision.
  * WebView `innerHeight` shrinks while the soft keyboard is open; using it made
@@ -30,4 +39,8 @@ export function isLargeScreen(): boolean {
 
 export function isAndroidPhone(): boolean {
   return isAndroidApp() && !isLargeScreen()
+}
+
+export function isMobilePhone(): boolean {
+  return isMobileApp() && !isLargeScreen()
 }

@@ -1,0 +1,11 @@
+{
+  "app": {
+    "bundleName": "com.unsunsk8er.biu",
+    "vendor": "Hanversion",
+    "versionCode": 2000000,
+    "versionName": "2.0.0",
+    "buildVersion": "1",
+    "icon": "$media:app_icon",
+    "label": "$string:app_name"
+  }
+}

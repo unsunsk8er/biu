@@ -1,6 +1,6 @@
 import type { CoverCandidate, CoverProvider } from '@/types/electron'
 import type { Track } from '@/types'
-import { isAndroidApp } from '@/utils/mobile'
+import { isAndroidApp, isHarmonyApp } from '@/utils/mobile'
 import { searchAndroidCovers } from '@/services/androidCoverSearch'
 import { artistSimilarity, inferCoverQueries, normalizeCoverText, scoreCoverCandidate, type CoverQuery } from '@/utils/coverMatchQuery'
 
@@ -229,7 +229,7 @@ export async function findMatchedCover(track: Track, force = false): Promise<Mat
       const search = (query: { title: string; artist: string }) =>
         api?.searchCovers
           ? api.searchCovers(query)
-          : isAndroidApp()
+          : isAndroidApp() || isHarmonyApp()
             ? searchAndroidCovers(query)
             : Promise.resolve(null)
 

@@ -551,6 +551,14 @@ export interface PlayUrlData {
     audio: AudioStream[]
     video: VideoStream[]
   }
+  /** fnval=0 returns progressive MP4 segments instead of DASH. */
+  durl?: Array<{
+    order: number
+    length: number
+    size: number
+    url: string
+    backup_url?: string[]
+  }>
 }
 
 /**
@@ -569,7 +577,10 @@ export async function getPlayUrl(
       cid,
       qn: 0,
       fnver: 0,
-      fnval: 16,
+      // 4048 = DASH + HDR + 4K + Dolby Audio + Dolby Vision + 8K + AV1.
+      // fnval=16 only returns the AAC ladder on many videos, which made the
+      // "lossless" setting fall back to 30280 even when FLAC was available.
+      fnval: 4048,
       fourk: 1,
     },
   })
@@ -812,6 +823,50 @@ function trackSourceFromPlayData(
   }
 }
 
+/**
+ * Progressive MP4 fallback for videos whose DASH audio CDN URLs are rejected.
+ * Some bilibili videos only expose a playable progressive stream; <audio> can
+ * play the MP4 container even though it carries a video track as well.
+ */
+export async function extractAudioProgressive(
+  bvid: string,
+  cid: number,
+  options?: {
+    aid?: string | number
+    title?: string
+    artist?: string
+    coverUrl?: string
+    duration?: number
+  },
+): Promise<TrackSource> {
+  const playData = await biliFetch<PlayUrlData>('/x/player/playurl', {
+    params: {
+      bvid,
+      cid,
+      qn: 0,
+      fnver: 0,
+      fnval: 0,
+      fourk: 1,
+      platform: 'html5',
+    },
+  })
+  const segment = playData.durl?.[0]
+  if (!segment?.url) throw new Error('No progressive stream')
+  return {
+    bvid,
+    aid: Number(options?.aid) || 0,
+    cid,
+    title: options?.title || '',
+    artist: options?.artist || '',
+    coverUrl: toHttpsUrl(options?.coverUrl || ''),
+    duration: Number(options?.duration) || 0,
+    audioUrl: segment.url.replace(/^http:/i, 'https:'),
+    backupUrls: (segment.backup_url || []).map(url => url.replace(/^http:/i, 'https:')),
+    audioQuality: 0,
+    audioMimeType: 'video/mp4',
+  }
+}
+
 export async function extractAudioFromVideo(
   bvid: string,
   options?: ExtractAudioOptions,
@@ -883,7 +938,7 @@ async function extractAudioByAvidCid(
   quality: AudioQuality = '高品质',
 ): Promise<TrackSource> {
   const playData = await biliFetch<PlayUrlData>('/x/player/playurl', {
-    params: { avid: aid, cid, qn: 0, fnver: 0, fnval: 16, fourk: 1 },
+    params: { avid: aid, cid, qn: 0, fnver: 0, fnval: 4048, fourk: 1 },
   })
   const streams = orderedAudioStreams(playData, quality)
   const bestAudio = streams[0]

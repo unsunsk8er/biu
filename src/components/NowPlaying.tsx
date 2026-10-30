@@ -16,7 +16,8 @@ import PlayQueue from '@/components/PlayQueue'
 import LyricsView from '@/components/LyricsView'
 import type { LyricCandidate } from '@/services/lyrics'
 import { getVideoComments, type VideoComment } from '@/services/api'
-import { isAndroidApp, isAndroidPhone } from '@/utils/mobile'
+import { isMobileApp, isMobilePhone } from '@/utils/mobile'
+import { MOTION_BASE, EASE_OUT, springSnappy } from '@/utils/motion'
 
 const sliderTheme = {
   ['--track-bg']: 'var(--np-track-bg, rgba(255,255,255,0.22))',
@@ -24,7 +25,7 @@ const sliderTheme = {
   ['--track-thumb']: 'var(--plasma-accent)',
 } as React.CSSProperties
 
-const spring = { type: 'spring', stiffness: 360, damping: 32, mass: 0.75 } as const
+const spring = springSnappy
 const noDrag = { WebkitAppRegion: 'no-drag' } as React.CSSProperties
 const commentPageSize = 20
 const AUTO_NOW_PLAYING_IDLE_MS = 30_000
@@ -50,22 +51,15 @@ function NowPlayingView() {
   const [commentsError, setCommentsError] = useState('')
   const [commentsLoadingMore, setCommentsLoadingMore] = useState(false)
   const [coverMode, setCoverMode] = useState<'cover' | 'lyrics' | 'comments'>('cover')
-  const mobile = isAndroidPhone()
-  const tablet = isAndroidApp() && !mobile
+  const mobile = isMobilePhone()
+  const tablet = isMobileApp() && !mobile
   const [sideTab, setSideTab] = useState<'lyrics' | 'comments'>('lyrics')
-  const nowPlayingMotion = mobile
-    ? {
-        initial: { opacity: 0, y: 30 },
-        animate: { opacity: 1, y: 0 },
-        exit: { opacity: 0, y: 24 },
-        transition: { duration: 0.32, ease: [0.22, 1, 0.36, 1] as const },
-      }
-    : {
-        initial: { opacity: 0, y: 16, scale: 0.99 },
-        animate: { opacity: 1, y: 0, scale: 1 },
-        exit: { opacity: 0, y: 12, scale: 0.99 },
-        transition: { duration: 0.32, ease: [0.22, 1, 0.36, 1] as const },
-      }
+  const nowPlayingMotion = {
+    initial: { opacity: 0, y: mobile ? 16 : 10 },
+    animate: { opacity: 1, y: 0 },
+    exit: { opacity: 0, y: mobile ? 12 : 8 },
+    transition: { duration: MOTION_BASE, ease: EASE_OUT },
+  }
   const swipeStartRef = useRef<{ x: number; y: number } | null>(null)
   const tabletCoverRef = useRef<HTMLDivElement | null>(null)
   const tabletArtistRef = useRef<HTMLButtonElement | null>(null)
@@ -106,7 +100,7 @@ function NowPlayingView() {
   }
 
   const closeToTray = () => {
-    if (isAndroidApp()) {
+    if (isMobileApp()) {
       close()
       return
     }

@@ -3,6 +3,7 @@ import { Clock, Heart, Music, Play, Trash2 } from 'lucide-react'
 import TrackActions from '@/components/TrackActions'
 import CoverArtwork from '@/components/CoverArtwork'
 import type { Track } from '@/types'
+import { EASE_OUT, MOTION_BASE, MOTION_FAST } from '@/utils/motion'
 
 export function MusicPageShell({ children }: { children: React.ReactNode }) {
   // Keep tab/page swaps opaque from the first frame. The previous entrance
@@ -102,7 +103,7 @@ export function FeaturedTrackCard({
       onClick={onPlay}
       whileHover={{ y: -5 }}
       whileTap={{ scale: 0.985 }}
-      transition={{ duration: 0.22 }}
+      transition={{ duration: MOTION_FAST, ease: EASE_OUT }}
     >
       <div className="am-feature-card__cover">
         <CoverArtwork src={track.coverUrl} alt={track.title} iconSize={20} />
@@ -152,7 +153,7 @@ export function TrackListRow({
       onClick={onPlay}
       whileHover={{ y: -1 }}
       whileTap={{ scale: 0.995 }}
-      transition={{ duration: 0.18 }}
+      transition={{ duration: MOTION_FAST, ease: EASE_OUT }}
     >
       {index !== undefined && (
         <span className="am-track-row__index">
@@ -188,9 +189,9 @@ export function EmptyLibrary({
   return (
     <motion.div
       className="am-empty"
-      initial={{ opacity: 0, scale: 0.97 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.28 }}
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: MOTION_BASE, ease: EASE_OUT }}
     >
       <div>{icon || <Music size={38} />}</div>
       <h2>{title}</h2>

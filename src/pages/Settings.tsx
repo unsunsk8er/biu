@@ -11,13 +11,13 @@ import { useTheme } from '@/hooks/useTheme'
 import { useAppSettings } from '@/hooks/useAppSettings'
 import PlaylistSyncPanel from '@/components/PlaylistSyncPanel'
 import AppSelect from '@/components/AppSelect'
-import { isAndroidApp } from '@/utils/mobile'
+import { isMobileApp } from '@/utils/mobile'
 import type { AppSettings, SidebarState, ThemeMode } from '@/types'
 
 export default function Settings() {
   const { mode, setMode } = useTheme()
   const { settings, setAppSettings } = useAppSettings()
-  const mobile = isAndroidApp()
+  const mobile = isMobileApp()
 
   return (
     <div className="settings-page">
@@ -71,6 +71,9 @@ export default function Settings() {
                 options={['标准', '高品质', '无损']}
               />
             </SettingsRow>
+            <p className="settings-note settings-quality-note">
+              音质在下一首或重新加载时生效；实际档位取决于 B 站是否提供该流。无损需要 FLAC/杜比可用，否则自动回退到高品质 AAC。
+            </p>
           </SettingsGroup>
 
         </div>

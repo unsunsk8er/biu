@@ -1,8 +1,11 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Play, X } from 'lucide-react'
 import type { VideoDetail } from '@/services/bilibiliApi'
+import { MOTION_FAST } from '@/utils/motion'
+
+const PAGE_BATCH = 24
 
 function formatDuration(seconds: number): string {
   if (!seconds) return ''
@@ -21,6 +24,12 @@ export default function VideoPartsDialog({
   onSelect: (index: number) => void
 }) {
   const open = Boolean(detail)
+  const [visibleCount, setVisibleCount] = useState(PAGE_BATCH)
+
+  useEffect(() => {
+    if (!detail) return
+    setVisibleCount(PAGE_BATCH)
+  }, [detail?.bvid])
 
   useEffect(() => {
     if (!open) return
@@ -51,7 +60,7 @@ export default function VideoPartsDialog({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.18 }}
+            transition={{ duration: MOTION_FAST }}
             onClick={onClose}
           />
           <motion.section
@@ -59,10 +68,10 @@ export default function VideoPartsDialog({
             role="dialog"
             aria-modal="true"
             aria-labelledby="video-parts-title"
-            initial={{ opacity: 0, y: 24, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 18, scale: 0.98 }}
-            transition={{ type: 'spring', stiffness: 360, damping: 32 }}
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 8 }}
+            transition={{ duration: MOTION_FAST }}
             onClick={event => event.stopPropagation()}
           >
             <header className="video-parts-dialog__head">
@@ -76,8 +85,17 @@ export default function VideoPartsDialog({
               </button>
             </header>
 
-            <div className="video-parts-list">
-              {detail.pages.map((page, index) => (
+            <div
+              className="video-parts-list"
+              onScroll={event => {
+                if (!detail || visibleCount >= detail.pages.length) return
+                const list = event.currentTarget
+                if (list.scrollTop + list.clientHeight >= list.scrollHeight - 96) {
+                  setVisibleCount(count => Math.min(count + PAGE_BATCH, detail.pages.length))
+                }
+              }}
+            >
+              {detail.pages.slice(0, visibleCount).map((page, index) => (
                 <button
                   type="button"
                   className="video-parts-row"

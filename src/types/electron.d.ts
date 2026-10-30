@@ -102,8 +102,43 @@ export interface CoverCandidate {
   relevance?: number
 }
 
+export interface BiuHarmonyBridge {
+  getVersion: () => string
+  getPlatform: () => string
+  openExternal: (url: string) => void
+  exitApp: () => void
+  request: (
+    requestId: string,
+    url: string,
+    method: string,
+    headersJson: string,
+    body: string,
+  ) => void
+  setMediaSession: (
+    assetId: string,
+    title: string,
+    artist: string,
+    album: string,
+    coverUrl: string,
+    lyric: string,
+    duration: number,
+  ) => void
+  setMediaSessionLyric: (lyric: string, singleLine: string) => void
+  setMediaSessionState: (isPlaying: boolean, positionSec: number, durationSec: number) => void
+  clearMediaSession: () => void
+  setBackMode: (allowSystemBack: boolean) => void
+  cacheAudioFile: (requestId: string, url: string) => void
+}
+
 declare global {
   interface Window {
+    BiuHarmony?: BiuHarmonyBridge
+    __biuAvCommand?: (command: string, value?: number) => void
+    __biuAudioFile?: (requestId: string, path: string) => void
+    __biuHarmonyResolve?: (
+      requestId: string,
+      payload: { status: number; headers: string; body: string },
+    ) => void
     electronAPI: {
       minimize: () => void
       maximize: () => void

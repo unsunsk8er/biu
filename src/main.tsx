@@ -1,14 +1,17 @@
 import { StrictMode } from 'react'
+import './themeBoot'
 import { createRoot } from 'react-dom/client'
 import { HashRouter } from 'react-router-dom'
 import App from './App'
 import AppErrorBoundary from './components/AppErrorBoundary'
 import { migrateLegacyStorage } from './utils/storageMigration'
 import { initTheme } from './hooks/useTheme'
-import { isAndroidApp, isLargeScreen } from './utils/mobile'
+import { isMobileApp, isLargeScreen } from './utils/mobile'
+import { installHarmonyFetch } from './services/harmonyFetch'
 import './styles/index.css'
 import './styles/huawei-music.css'
 
+installHarmonyFetch()
 migrateLegacyStorage()
 initTheme()
 
@@ -25,8 +28,8 @@ if (window.electronAPI) {
   }, { capture: true })
 }
 
-// Android WebView APK 使用独立的移动布局；桌面端不受影响。
-if (isAndroidApp()) {
+// Android APK / HarmonyOS ArkWeb shell 使用独立的移动布局；桌面端不受影响。
+if (isMobileApp()) {
   if (isLargeScreen()) {
     document.documentElement.dataset.biuTablet = 'true'
   } else {

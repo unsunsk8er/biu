@@ -258,6 +258,13 @@ biu 的设计目标不是“炫技”，而是让复杂功能保持音乐应用�
 - `platform/HarmonyOS/web_engine` 中包含鸿蒙 Electron 适配层。
 - 针对 `process.platform === "openharmony"` 做平台差异处理。
 
+### HarmonyOS Phone 层
+
+- `platform/HarmonyOSPhone` 是 Mate 70 Pro / HarmonyOS 7 的 ArkTS Web 壳工程。
+- `npm run harmony:phone:prepare` 生成单文件 Web 资源；`npm run harmony:phone:build` 调用 hvigor 产出 HAP。
+- 使用 ArkWeb 直接加载内置 UI；已验证搜索、分P播放、后台音频、扫码登录二维码与底部导航。
+- 详见 [platform/HarmonyOSPhone/README.md](platform/HarmonyOSPhone/README.md)。
+
 ## 快速开始
 
 ### 环境要求
@@ -266,6 +273,7 @@ biu 的设计目标不是“炫技”，而是让复杂功能保持音乐应用�
 - npm。
 - 桌面打包需要对应平台环境。
 - HarmonyOS PC 构建需要 DevEco Studio 和鸿蒙 Electron 工程环境。
+- HarmonyOS Phone 构建需要 DevEco Studio 26 / HarmonyOS SDK API 26，并配置调试签名。
 
 ### 安装依赖
 

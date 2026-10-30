@@ -5,7 +5,7 @@ import { addRecentTrack, toggleFavoriteTrack, loadFavoriteTracks, updateTrackEve
 import { useAppSettings } from '@/hooks/useAppSettings'
 import { readStoredItem, writeStoredItem } from '@/utils/persistentStorage'
 import { coverMatchWasAttempted, findMatchedCover, markCoverMatchAttempted, type MatchedCover } from '@/utils/coverMatch'
-import { isAndroidApp } from '@/utils/mobile'
+import { isAndroidApp, isHarmonyApp } from '@/utils/mobile'
 import {
   audioCacheKey,
   cacheAudioForTrack,
@@ -13,6 +13,8 @@ import {
   getCachedAudioItem,
 } from '@/services/audioCache'
 import type { TrackSource } from '@/services/bilibiliApi'
+import { extractAudioProgressive } from '@/services/bilibiliApi'
+import { cacheHarmonyAudio } from '@/services/harmonyAudio'
 
 interface PlayerState {
   currentTrack: Track | null
@@ -761,6 +763,57 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           }
         }
 
+        // Some videos expose DASH audio URLs whose CDN rejects the WebView
+        // request. Retry with the progressive MP4 stream before giving up.
+        if (!loaded && !cancelled && currentTrack?.cid) {
+          try {
+            const progressive = await extractAudioProgressive(
+              currentTrack.bvid || currentTrack.id,
+              Number(currentTrack.cid),
+              {
+                aid: currentTrack.aid,
+                title: currentTrack.title,
+                artist: currentTrack.artist,
+                coverUrl: currentTrack.coverUrl,
+                duration: currentTrack.duration,
+              },
+            )
+            for (const [attempt, url] of candidateUrls(progressive).slice(0, 6).entries()) {
+              if (cancelled) return
+              try {
+                await loadSource(url, attempt)
+                if (cancelled) return
+                loaded = true
+                source = progressive
+                break
+              } catch (err) {
+                lastError = err
+              }
+            }
+          } catch (err) {
+            lastError = err
+          }
+        }
+
+        // Last resort on HarmonyOS: download with a native Referer into the app
+        // cache and play the local file. Some CDNs reject the WebView request
+        // even though the same URL is valid for this device.
+        if (!loaded && !cancelled && isHarmonyApp() && source.audioUrl) {
+          try {
+            const fileUrl = await cacheHarmonyAudio(source.audioUrl)
+            await loadSource(fileUrl, 0)
+            if (cancelled) return
+            loaded = true
+            source = {
+              ...source,
+              audioUrl: fileUrl,
+              backupUrls: [],
+            }
+          } catch (err) {
+            lastError = err
+          }
+        }
+
         if (!loaded) throw lastError instanceof Error ? lastError : new Error('无法加载音频源')
         if (cancelled) return
         if (shouldAutoplayRef.current) {
@@ -1178,10 +1231,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       const title = match.title || track.title
       const artist = match.artist || track.artist
       const coverUrl = match.coverUrl || track.coverUrl
+      const album = match.album || track.album
       if (
         title === track.title
         && artist === track.artist
         && coverUrl === track.coverUrl
+        && album === track.album
         && track.coverMatched
         && track.metadataMatched
       ) return track
@@ -1190,6 +1245,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         title,
         artist,
         coverUrl,
+        album,
         coverMatched: Boolean(match.coverUrl) || track.coverMatched,
         metadataMatched: Boolean(match.title || match.artist) || track.metadataMatched,
       }

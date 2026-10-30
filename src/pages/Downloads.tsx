@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
+import { EASE_OUT, MOTION_FAST, panelTransition } from '@/utils/motion'
 import {
   CheckSquare,
   Download,
@@ -23,7 +24,7 @@ import {
 import { usePlayer } from '@/contexts/PlayerContext'
 import { useAppSettings } from '@/hooks/useAppSettings'
 import ToggleSwitch from '@/components/ToggleSwitch'
-import { isAndroidApp } from '@/utils/mobile'
+import { isMobileApp } from '@/utils/mobile'
 import {
   AUDIO_CACHE_CHANGED_EVENT,
   deleteCachedAudio,
@@ -59,7 +60,7 @@ function cachedItemToTrack(item: CachedAudioItem): Track {
 export default function Downloads() {
   const player = usePlayer()
   const { settings, setAppSettings } = useAppSettings()
-  const mobile = isAndroidApp()
+  const mobile = isMobileApp()
   const [items, setItems] = useState<CachedAudioItem[]>([])
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState('')
@@ -308,7 +309,7 @@ export default function Downloads() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
+            transition={{ duration: MOTION_FAST, ease: EASE_OUT }}
             onMouseDown={() => { if (!deleting) setConfirmOpen(false) }}
           >
             <motion.div
@@ -316,10 +317,10 @@ export default function Downloads() {
               role="dialog"
               aria-modal="true"
               aria-labelledby="download-confirm-title"
-              initial={{ opacity: 0, y: 18, scale: 0.97 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 18, scale: 0.97 }}
-              transition={{ type: 'spring', stiffness: 360, damping: 32 }}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 8 }}
+              transition={panelTransition}
               onMouseDown={(event) => event.stopPropagation()}
             >
               <div className="playlist-dialog__head">

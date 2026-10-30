@@ -275,6 +275,10 @@ function cleanTitle(value: string): string {
     .replace(/[“”"]/g, ' ')
     .replace(/[’‘]/g, "'")
     .replace(/\s+/g, ' ')
+    // Multi-part Bilibili titles arrive as P1 · 001. 夜曲-周杰伦; the part
+    // prefix is not part of the song name and breaks catalogue searches.
+    .replace(/^P\d+\s*[·•:：.-]?\s*/i, ' ')
+    .replace(/^\d{1,3}[.、]\s*/, ' ')
     .replace(/^[\s\-–—－·|:：]+|[\s\-–—－·|:：]+$/g, '')
     .trim()
 }

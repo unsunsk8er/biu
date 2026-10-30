@@ -6,11 +6,13 @@ export default [
   {
     ignores: [
       'dist/**',
+      'dist-harmony/**',
       'dist-electron/**',
       'release/**',
       'node_modules/**',
       'platform/**',
       'android/**',
+      '.android-tools/**',
       'scripts/smoke/out/**',
       'scripts/smoke/userdata/**',
       '.archive/**',

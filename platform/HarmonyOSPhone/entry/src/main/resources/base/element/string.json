@@ -1,0 +1,16 @@
+{
+  "string": [
+    {
+      "name": "module_desc",
+      "value": "biu HarmonyOS phone entry"
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "biu"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "biu"
+    }
+  ]
+}

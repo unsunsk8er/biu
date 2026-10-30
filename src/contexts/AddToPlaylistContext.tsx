@@ -3,6 +3,7 @@ import { Check, Music, X } from 'lucide-react'
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
 import { addTrackToPlaylist, loadPlaylists, PLAYLISTS_CHANGED_EVENT } from '@/utils/storage'
 import type { Playlist, Track } from '@/types'
+import { MOTION_FAST, panelTransition } from '@/utils/motion'
 
 interface AddToPlaylistContextValue {
   openAddToPlaylist: (track: Track) => void
@@ -64,15 +65,15 @@ export function AddToPlaylistProvider({ children }: { children: ReactNode }) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.18 }}
+            transition={{ duration: MOTION_FAST }}
             onMouseDown={close}
           >
             <motion.div
               className="add-playlist-popover"
-              initial={{ opacity: 0, y: 14, scale: 0.97 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 14, scale: 0.97 }}
-              transition={{ type: 'spring', stiffness: 360, damping: 30 }}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 8 }}
+              transition={panelTransition}
               onMouseDown={(e) => e.stopPropagation()}
             >
               <div className="add-playlist-popover__head">

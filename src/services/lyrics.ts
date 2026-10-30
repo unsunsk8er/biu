@@ -6,7 +6,7 @@
  */
 
 import type { Track } from '@/types'
-import { isAndroidApp } from '@/utils/mobile'
+import { isAndroidApp, isHarmonyApp } from '@/utils/mobile'
 import { androidLyricsApi } from './androidLyricsApi'
 
 export interface LyricLine {
@@ -40,7 +40,7 @@ function bridge() {
   if (typeof window === 'undefined') return undefined
   const desktop = window.electronAPI?.lyricsApi
   if (desktop) return desktop
-  if (isAndroidApp()) return androidLyricsApi
+  if (isAndroidApp() || isHarmonyApp()) return androidLyricsApi
   return undefined
 }
 

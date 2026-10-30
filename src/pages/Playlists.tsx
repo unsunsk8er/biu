@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ArrowDown, ArrowUp, CheckSquare, Heart, ListChecks, ListMusic, Music, Play, Plus, Square, Trash2, X } from 'lucide-react'
 import { usePlayer } from '@/contexts/PlayerContext'
 import { CreatePlaylistDialog } from '@/components/layout/Sidebar'
-import { isAndroidApp } from '@/utils/mobile'
+import { isAndroidApp, isMobileApp } from '@/utils/mobile'
 import { FAVORITES_CHANGED_EVENT, loadFavoriteTracks, saveFavoriteTracks } from '@/utils/storage'
 import { createPlaylist, savePlaylists } from '@/utils/storage'
 import AddToPlaylistButton from '@/components/AddToPlaylistButton'
@@ -52,7 +52,7 @@ function PlaylistOverview() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
   const [deleteOpen, setDeleteOpen] = useState(false)
   const navigate = useNavigate()
-  const mobile = isAndroidApp()
+  const mobile = isMobileApp()
 
   useEffect(() => {
     const sync = () => setPlaylists(loadPlaylists())
@@ -258,7 +258,7 @@ function PlaylistOverview() {
       )}
 
       {deleteOpen && (
-        <div className="playlist-dialog-backdrop" onMouseDown={() => setDeleteOpen(false)}>
+        <div className="playlist-dialog-backdrop playlist-manage-backdrop" onMouseDown={() => setDeleteOpen(false)}>
           <div
             className="playlist-dialog playlist-manage-dialog"
             role="dialog"
