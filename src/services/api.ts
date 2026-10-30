@@ -161,7 +161,8 @@ export async function getVideoComments(
 
   const data = await rendererComments(oid, cursor, pageSize)
   const replies = data.replies || []
-  const nextOffset = data.cursor?.pagination_reply?.next_offset || ''
+  const nextOffset = data.cursor?.pagination_reply?.next_offset || data.nextOffset || ''
+  const total = data.cursor?.all_count || data.page?.count || replies.length
   return {
     items: replies.map((reply) => ({
       id: reply.rpid,
@@ -172,9 +173,9 @@ export async function getVideoComments(
       replyCount: reply.rcount || 0,
       createdAt: reply.ctime || 0,
     })),
-    total: data.cursor?.all_count || data.page?.count || replies.length,
+    total,
     nextOffset,
-    hasMore: Boolean(data.cursor && !data.cursor.is_end && nextOffset && replies.length > 0),
+    hasMore: data.hasMore ?? Boolean(data.cursor && !data.cursor.is_end && nextOffset && replies.length > 0),
   }
 }
 

@@ -26,9 +26,12 @@ import java.util.Map;
  * leave Android's CookieManager.
  */
 final class BiliProxy {
+    // Bilibili's WBI/reply APIs return -352 for the custom BiuAndroid UA.
+    // Use a normal desktop Chrome UA for API requests; the WebView page UA is
+    // still set separately to BiuAndroid for mobile layout detection.
     private static final String USER_AGENT =
-        "Mozilla/5.0 (Linux; Android 14; BiuAndroid/" + BuildConfig.VERSION_NAME + ") AppleWebKit/537.36 "
-            + "(KHTML, like Gecko) Chrome/136.0.0.0 Mobile Safari/537.36";
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+            + "(KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36";
     // Bilibili's media CDN rejects the Android WebView UA with 403; its signed
     // audio URLs expect a desktop browser UA. The app is still Android-only.
     private static final String MEDIA_USER_AGENT =

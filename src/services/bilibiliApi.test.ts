@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   md5,
   orderedAudioStreams,
+  replyMainCursor,
   signWbiQuery,
   type AudioStream,
   type PlayUrlData,
@@ -22,6 +23,17 @@ function stream(quality: number, bandwidth: number): AudioStream {
 function playData(streams: AudioStream[]): PlayUrlData {
   return { quality: 0, format: 'dash', dash: { audio: streams, video: [] } }
 }
+
+describe('replyMainCursor', () => {
+  it('encodes the next page for the non-WBI reply/main fallback', () => {
+    expect(replyMainCursor({ next: 2, is_end: false })).toBe('main:2')
+  })
+
+  it('stops at the end of comments', () => {
+    expect(replyMainCursor({ next: 3, is_end: true })).toBe('')
+    expect(replyMainCursor(undefined)).toBe('')
+  })
+})
 
 describe('md5', () => {
   it('matches known RFC 1321 vectors', () => {

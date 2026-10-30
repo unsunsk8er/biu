@@ -474,6 +474,30 @@ export interface ReplyResponse {
   page?: ReplyPage
   replies?: ReplyItem[] | null
   cursor?: ReplyCursor
+  /** Cursor supplied by the non-WBI /x/v2/reply/main fallback. */
+  nextOffset?: string
+  hasMore?: boolean
+}
+
+/** Cursor for the public /x/v2/reply/main endpoint: "main:2". */
+export function replyMainCursor(cursor: ReplyCursor | undefined): string {
+  const next = Number(cursor?.next) || 0
+  return cursor && !cursor.is_end && next > 0 ? `main:${next}` : ''
+}
+
+async function getReplyMain(
+  oid: number,
+  next: number,
+  pageSize: number,
+): Promise<ReplyResponse> {
+  const data = await biliFetch<ReplyResponse>('/x/v2/reply/main', {
+    params: { oid, type: 1, mode: 3, next, ps: pageSize },
+  })
+  return {
+    ...data,
+    nextOffset: replyMainCursor(data.cursor),
+    hasMore: Boolean(replyMainCursor(data.cursor)),
+  }
 }
 
 /**
@@ -485,6 +509,10 @@ export async function getVideoComments(
   cursor = '',
   pageSize = 20,
 ): Promise<ReplyResponse> {
+  if (cursor.startsWith('main:')) {
+    return getReplyMain(oid, Number(cursor.slice('main:'.length)) || 0, pageSize)
+  }
+
   const params = {
     oid,
     type: 1,
@@ -506,8 +534,14 @@ export async function getVideoComments(
     }
     return data.data as ReplyResponse
   } catch (error) {
-    // 未登录或风控时至少保留旧接口的首屏热门评论；后续游标不可用。
+    // WBI signatures can be rejected in the Android WebView. The public
+    // /x/v2/reply/main endpoint still exposes next/is_end and does not need WBI.
     if (!cursor) {
+      try {
+        return await getReplyMain(oid, 0, pageSize)
+      } catch {
+        // Fall through to the legacy hot-reply endpoint.
+      }
       try {
         return await biliFetch('/x/v2/reply', {
           params: { type: 1, oid, pn: 1, ps: pageSize, sort: 2 },
