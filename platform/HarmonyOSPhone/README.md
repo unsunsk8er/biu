@@ -41,29 +41,42 @@
 # 单文件 Web + 复制到 rawfile
 npm run harmony:phone:prepare
 
-# hvigor 编译
+# debug HAP
 npm run harmony:phone:build
+
+# release HAP（debug:false）
+npm run harmony:phone:release
 ```
 
 产物：
 
 ```text
 platform/HarmonyOSPhone/entry/build/default/outputs/default/entry-default-signed.hap
-release/biu-2.0.0-harmony-phone.hap
+release/biu-2.0.0-harmony-phone.hap          # debug
+release/biu-2.0.0-harmony-phone-release.hap  # release
 ```
 
-## 签名
+## 签名与 release
 
 本机已经用 DevEco 自动签名生成并验证了 `com.unsunsk8er.biu`：
 
 ```text
 release/biu-2.0.0-harmony-phone.hap
 SHA-256: 98c5c7d07d7a94802703463186ffeb97cb14a3fa7b4e2195533f27f7cd9e71c5
+
+release/biu-2.0.0-harmony-phone-release.hap
+SHA-256: 52c0a7b068e2a09f165204a79f8ad119858c8ed760bcb21e6b6c32f83e6ec39e
 ```
 
-当前可安装自用包为 **debug 构建**（`debug:true`）。release 构建下 ArkWeb 会强制 CORS，搜索可走原生桥，但 playurl 返回的 CDN 地址在 `<audio>` 中会 403；要产出完全 release 版本，下一步需要原生 `AVPlayer` 或本地音频代理。
+`biu-2.0.0-harmony-phone-release.hap` 是 **release 构建**（`debug:false`），已在 Mate 70 Pro 上验证：
 
-这是自用 debug 证书，不是华为正式发布证书。`build-profile.json5` 含本机绝对路径与加密密码，已 gitignore，不入库。
+- B 站搜索走原生 HTTP 桥
+- 音频首连 CDN 仍可能 403，但会自动走渐进流/原生缓存 `file://` 回退
+- AVSession、通知栏和控制中心正常
+
+它仍使用 DevEco 自用 debug 证书签名，**不是华为正式发布证书**。正式上架仍需华为开发者证书与 AppGallery 签名链路。
+
+`build-profile.json5` 含本机绝对路径与加密密码，已 gitignore，不入库。
 
 新克隆或换机时：
 

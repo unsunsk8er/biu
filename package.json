@@ -35,6 +35,7 @@
     "harmony:build": "npm run harmony:prepare && node scripts/build-harmony.mjs",
     "harmony:phone:prepare": "node scripts/build-harmony-web.mjs && node scripts/prepare-harmony-phone.mjs",
     "harmony:phone:build": "npm run harmony:phone:prepare && node scripts/build-harmony-phone.mjs",
+    "harmony:phone:release": "npm run harmony:phone:prepare && node scripts/build-harmony-phone.mjs release",
     "android:prepare": "node scripts/prepare-android.mjs",
     "android:build": "npm run android:prepare && node scripts/build-android.mjs assembleDebug",
     "android:release": "npm run android:prepare && node scripts/build-android.mjs assembleRelease"

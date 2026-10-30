@@ -6,6 +6,7 @@ const root = process.cwd()
 const project = path.join(root, 'platform', 'HarmonyOSPhone')
 const deveco = process.env.DEVECO_HOME || 'C:\\Program Files\\Huawei\\DevEco Studio'
 const hvigor = path.join(deveco, 'tools', 'hvigor', 'bin', 'hvigorw.bat')
+const buildMode = process.argv[2] === 'release' ? 'release' : 'debug'
 
 if (!fs.existsSync(hvigor)) {
   throw new Error(`hvigorw not found: ${hvigor}; set DEVECO_HOME`)
@@ -25,7 +26,7 @@ const env = {
 }
 
 const result = spawnSync(
-  hvigor,
+  `"${hvigor}"`,
   [
     '--mode',
     'module',
@@ -34,7 +35,7 @@ const result = spawnSync(
     '-p',
     'module=entry@default',
     '-p',
-    'buildMode=debug',
+    `buildMode=${buildMode}`,
     'assembleHap',
     '--no-daemon',
   ],
@@ -54,11 +55,16 @@ const output = path.join(project, 'entry', 'build', 'default', 'outputs', 'defau
 const release = path.join(root, 'release')
 fs.mkdirSync(release, { recursive: true })
 
-for (const name of ['entry-default-signed.hap', 'entry-default-unsigned.hap']) {
+for (const name of buildMode === 'release'
+  ? ['entry-default-signed.hap']
+  : ['entry-default-signed.hap', 'entry-default-unsigned.hap']) {
   const source = path.join(output, name)
   if (!fs.existsSync(source)) continue
-  const suffix = name.includes('signed') ? 'signed' : 'unsigned'
-  const target = path.join(release, `biu-2.0.0-harmony-phone-${suffix}.hap`)
+  const target = buildMode === 'release'
+    ? path.join(release, 'biu-2.0.0-harmony-phone-release.hap')
+    : name.includes('signed')
+      ? path.join(release, 'biu-2.0.0-harmony-phone.hap')
+      : path.join(release, 'biu-2.0.0-harmony-phone-unsigned.hap')
   fs.copyFileSync(source, target)
   console.log(`artifact: ${target}`)
 }
