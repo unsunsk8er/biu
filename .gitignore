@@ -62,3 +62,15 @@ platform/HarmonyOSPhone/local.properties
 platform/HarmonyOSPhone/build-profile.json5
 dist-harmony/
 platform/HarmonyOSPhone/entry/build/
+
+# Local device captures / layout dumps
+/harmony-*.jpeg
+/*.log
+/*-layout.json
+/panel.json
+/search-layout.json
+/insets-*.json
+/lyrics-*.json
+/parts*.json
+/settings-now.json
+/now-comments.json
