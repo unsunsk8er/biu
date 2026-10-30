@@ -5,6 +5,11 @@
   "description": "biu - 基于 Bilibili 的桌面音乐播放器",
   "author": "Hanversion",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/unsunsk8er/biu.git"
+  },
+  "homepage": "https://github.com/unsunsk8er/biu#readme",
   "engines": {
     "node": ">=22.12.0"
   },

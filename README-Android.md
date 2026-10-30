@@ -4,10 +4,19 @@ biu 2.0.0 的 Android 版本，面向国产 Android 手机，不依赖 Google Pl
 
 ## 下载
 
-当前源码构建产物在 `android/app/build/outputs/apk/`；验证包使用本地测试签名：
+本仓库不包含 APK（`release/` 与 `android/app/build/` 已 gitignore），需要本地构建：
 
-- [biu-2.0.0-android-verify.apk](release/biu-2.0.0-android-verify.apk)（仅验收，不是正式发布包）
-- [SHA-256 校验文件](release/biu-2.0.0-android-verify.apk.sha256)
+```bash
+npm run android:build      # debug
+npm run android:release    # release（需签名环境变量）
+```
+
+验证包仅生成在本地，不入库：
+
+```text
+release/biu-2.0.0-android-verify.apk
+release/biu-2.0.0-android-verify.apk.sha256
+```
 
 ```text
 版本：2.0.0
