@@ -2,13 +2,13 @@
 
 ## Direction
 
-- Full-bleed / squircle hot-pink field (`#FF5C93`), no gradients or shadows.
-- One continuous white **sound-wave pulse**:
-  - amplitude envelope: quiet at both tails, strong through the middle;
-  - three oscillations with a gentle frequency rise;
-  - variable stroke weight: thin tails, bold center.
+- Full-bleed / squircle hot-pink field (`#FF5C93`).
+- One continuous white **sound-wave signal**:
+  - enters beyond the left edge and leaves beyond the right edge;
+  - fine 50/1024 core, with a soft white bloom and a brighter inner glow;
+  - three oscillations with a gentle frequency rise and amplitude envelope.
 - No text, note glyph, mascot or secondary marks.
-- The pulse remains readable at 48 px and feels like motion/sound at 1024 px.
+- The signal remains readable at 48 px and feels like light/motion at 1024 px.
 
 ## Palette
 
