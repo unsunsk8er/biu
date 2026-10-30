@@ -51,3 +51,14 @@ platform/HarmonyOS/oh_modules
 /platform/HarmonyOS/web_engine/src/main/resources/rawfile
 /platform/HarmonyOS/web_engine/src/main/resources/resfile
 /platform/HarmonyOS/dependencies
+
+# HarmonyOS phone build
+platform/HarmonyOSPhone/.hvigor/
+platform/HarmonyOSPhone/**/build/
+platform/HarmonyOSPhone/**/oh_modules/
+platform/HarmonyOSPhone/entry/src/main/resources/rawfile/www/
+platform/HarmonyOSPhone/local.properties
+
+platform/HarmonyOSPhone/build-profile.json5
+dist-harmony/
+platform/HarmonyOSPhone/entry/build/
