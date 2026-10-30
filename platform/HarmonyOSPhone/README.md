@@ -62,21 +62,41 @@ release/biu-2.0.0-harmony-phone-release.hap  # release
 
 ```text
 release/biu-2.0.0-harmony-phone.hap
-SHA-256: 98c5c7d07d7a94802703463186ffeb97cb14a3fa7b4e2195533f27f7cd9e71c5
+SHA-256: 7a3968ff3c46cbb4a6e9e5728423304b2f165a864d41030628df23fe46572c1a
 
 release/biu-2.0.0-harmony-phone-release.hap
-SHA-256: 52c0a7b068e2a09f165204a79f8ad119858c8ed760bcb21e6b6c32f83e6ec39e
+SHA-256: 99ecc2eb9c10135d7c5d3f9275c65fdf2c2e7fada35fb195e00c706a924600c8
 ```
 
 `biu-2.0.0-harmony-phone-release.hap` 是 **release 构建**（`debug:false`），已在 Mate 70 Pro 上验证：
 
 - B 站搜索走原生 HTTP 桥
 - 音频首连 CDN 仍可能 403，但会自动走渐进流/原生缓存 `file://` 回退
-- AVSession、通知栏和控制中心正常
+- AVSession 状态更新已节流到约 1s，通知栏和控制中心正常
 
 它仍使用 DevEco 自用 debug 证书签名，**不是华为正式发布证书**。正式上架仍需华为开发者证书与 AppGallery 签名链路。
 
 `build-profile.json5` 含本机绝对路径与加密密码，已 gitignore，不入库。
+
+## 发布定位（2026-10-30）
+
+当前决定：**自用 release 包，暂不推进 AppGallery 正式证书。**
+
+- 本包用于 Mate 70 Pro 自用安装，不对外分发、不承诺应用商店升级。
+- 触发重新评估正式证书的条件：需要公开分发、上架 AppGallery，或出现第二台长期维护设备。
+- 届时需要重新处理华为开发者证书、签名 profile 和升级覆盖验证。
+
+## 设备冒烟
+
+```powershell
+# 安装 release HAP、启动并校验移动壳
+npm run smoke:harmony
+
+# 已安装时跳过安装
+npm run smoke:harmony -- --skip-install
+```
+
+脚本会检查进程存活、页面文本（搜索/歌单/设置/正在播放），布局 dump 写入 `.archive/smoke/layout.json`。
 
 新克隆或换机时：
 
@@ -99,5 +119,5 @@ entry/src/main/resources/rawfile/www/   构建时生成的单文件 UI（gitigno
 ## 限制
 
 - 这是 **ArkWeb 壳**，不是纯 ArkUI 重写；搜索/播放/歌单等页面仍是现有 React UI。
-- 锁屏媒体控制目前依赖系统对 ArkWeb 媒体会话的接管；若要自定义通知栏/锁屏样式，需要后续接 `AVSession` + `AVPlayer`。
+- 锁屏/控制中心已接入 AVSession；若要自定义通知栏/锁屏样式，后续考虑原生 `AVPlayer` 替代 WebView 音频。
 - `release/` 未入库；二进制通过本地构建或 GitHub Releases 分发。

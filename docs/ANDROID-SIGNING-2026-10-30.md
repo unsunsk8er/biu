@@ -38,7 +38,7 @@ release/biu-2.0.0-android.apk
 
 ```text
 release/biu-2.0.0-android.apk
-SHA-256: 651ebd6834486fb9efb261936b70d6c0c8ce3da1fb4f73919fc687d769d7ee1c
+SHA-256: 9d2dcd2d0faed64abbde325f151ed9b7907bed541ec555a1659d1d64c4fcbf9d
 cert: CN=biu release
 ```
 
@@ -48,6 +48,26 @@ cert: CN=biu release
 - 旧的 `biu-2.0.0-android-verify.apk`（`CN=biu Verification`）和 debug 证书包与新正式包签名不同，首次安装正式包前需要卸载旧包。
 - 不要把 keystore 或口令提交到 Git；当前 `.android-tools/` 已在 `.gitignore` 中。
 - 建议把 `C:\Users\admin\.biu-signing` 再备份到离线介质。
+
+## 离线备份
+
+已创建备份包：
+
+```text
+C:\Users\admin\.biu-signing\biu-release-backup-2026-10-30.zip
+D:\biu-signing-backup\biu-release-backup-2026-10-30.zip
+SHA-256: 176b4c650f0033ea9e518ff65b4944fdbf7a3b54433591957c93e816a61fc9af
+```
+
+D 盘副本已校验哈希一致；仍建议再复制到 U 盘/加密盘，避免整机故障。
+
+恢复验证已完成：
+
+1. 解压到临时目录；
+2. 用恢复出的 keystore 重新签一个测试 APK；
+3. `apksigner` 验签得到同一证书指纹 `52d90addcfb673634d18edd6c6cbbaa2cca08130b67e91dc46d279790d3c336b`。
+
+**请把这个 ZIP 复制到离线介质（U 盘/加密盘）**；只留在本机不算离线备份。恢复时还需要 `biu-release.properties` 中的口令。
 
 ## HarmonyOS 说明
 

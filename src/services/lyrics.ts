@@ -7,6 +7,7 @@
 
 import type { Track } from '@/types'
 import { isAndroidApp, isHarmonyApp } from '@/utils/mobile'
+import { createInFlight } from '@/utils/inFlight'
 import { androidLyricsApi } from './androidLyricsApi'
 
 export interface LyricLine {
@@ -347,6 +348,17 @@ export async function getLyricForTrack(track: Track): Promise<LyricResult | null
 
   cacheOk(track.id, result)
   return result
+}
+
+const lyricRequests = createInFlight<LyricResult | null>()
+
+/**
+ * Shared lookup used by Now Playing and the AVSession mirror. The two
+ * components mount independently, so without this they both start the same
+ * OIAPI/QQ lookup before the first one has a chance to fill the cache.
+ */
+export function getLyricForTrackShared(track: Track): Promise<LyricResult | null> {
+  return lyricRequests.run(track.id, () => getLyricForTrack(track))
 }
 
 export async function searchLyricCandidates(query: string): Promise<LyricCandidate[]> {

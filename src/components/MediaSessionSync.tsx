@@ -1,8 +1,9 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { usePlayer, usePlayerProgress } from '@/contexts/PlayerContext'
 import { useLyrics } from '@/hooks/useLyrics'
 import { useAppSettings } from '@/hooks/useAppSettings'
 import type { LyricLine } from '@/services/lyrics'
+import { shouldPushPlaybackState, type PlaybackStateSnapshot } from '@/services/playbackState'
 
 function pad(value: number): string {
   return String(Math.floor(value)).padStart(2, '0')
@@ -37,6 +38,7 @@ export default function MediaSessionSync() {
   const { settings } = useAppSettings()
   const track = player.currentTrack
   const lyrics = useLyrics(track, Boolean(track) && settings.showLyrics)
+  const lastPlaybackStateRef = useRef<PlaybackStateSnapshot | null>(null)
 
   const lrc = useMemo(() => toLrc(lyrics.result?.lines || []), [lyrics.result])
   const currentLyric = useMemo(
@@ -73,9 +75,19 @@ export default function MediaSessionSync() {
     const bridge = window.BiuHarmony
     if (!bridge) return
     if (!track) {
+      lastPlaybackStateRef.current = null
       bridge.clearMediaSession()
       return
     }
+    const snapshot: PlaybackStateSnapshot = {
+      trackId: track.id,
+      playing: player.isPlaying,
+      position: progress,
+      duration: total,
+      at: Date.now(),
+    }
+    if (!shouldPushPlaybackState(lastPlaybackStateRef.current, snapshot)) return
+    lastPlaybackStateRef.current = snapshot
     bridge.setMediaSessionState(player.isPlaying, progress, total)
   }, [player.isPlaying, progress, total, track?.id])
 

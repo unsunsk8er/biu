@@ -14,6 +14,7 @@ import {
 } from '@/services/audioCache'
 import type { TrackSource } from '@/services/bilibiliApi'
 import { extractAudioProgressive } from '@/services/bilibiliApi'
+import { buildAudioCandidateUrls } from '@/services/playbackFallback'
 import { cacheHarmonyAudio } from '@/services/harmonyAudio'
 
 interface PlayerState {
@@ -713,11 +714,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           }
         }
 
-        const candidateUrls = (target: typeof source) => Array.from(new Set(
-          [target.audioUrl, ...(target.backupUrls || [])]
-            .filter(Boolean)
-            .map((url) => url.replace(/^http:/i, 'https:')),
-        ))
+        const candidateUrls = (target: typeof source) => buildAudioCandidateUrls(target)
 
         let loaded = false
         let lastError: unknown = null

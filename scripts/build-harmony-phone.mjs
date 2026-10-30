@@ -62,7 +62,7 @@ for (const name of buildMode === 'release'
   if (!fs.existsSync(source)) continue
   const target = buildMode === 'release'
     ? path.join(release, 'biu-2.0.0-harmony-phone-release.hap')
-    : name.includes('signed')
+    : name === 'entry-default-signed.hap'
       ? path.join(release, 'biu-2.0.0-harmony-phone.hap')
       : path.join(release, 'biu-2.0.0-harmony-phone-unsigned.hap')
   fs.copyFileSync(source, target)

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import type { Track } from '@/types'
 import {
-  getLyricForTrack,
+  getLyricForTrackShared,
   searchLyricCandidates,
   chooseLyricCandidate,
   clearLyricCache,
@@ -24,7 +24,7 @@ export function useLyrics(track: Track | null, enabled: boolean) {
     const reqId = ++reqIdRef.current
     setStatus('loading')
     setResult(null)
-    const res = await getLyricForTrack(t)
+    const res = await getLyricForTrackShared(t)
     if (reqId !== reqIdRef.current) return // 已切歌，丢弃过期结果
     if (!res || (!res.lines.length && !res.instrumental)) {
       setStatus('empty')
