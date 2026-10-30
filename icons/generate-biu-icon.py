@@ -1,25 +1,26 @@
 #!/usr/bin/env python3
-"""Generate the flat biu icon.
+"""Generate the flat biu icon: hot-pink field + one white wave line.
 
-Design:
-- one flat hot-pink field, no gradients, glows or shadows
-- no text: a single centered Apple Music-like beamed eighth note
-  (two heads on top, descending stems, beam at the bottom).
+The mark is deliberately one continuous line so it stays readable at 48 px and
+still feels like motion/sound at 1024 px. No gradients, shadows or text.
 """
 from __future__ import annotations
 
-import base64
 import math
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageFilter, ImageFont
+from PIL import Image, ImageDraw
 
 ROOT = Path(__file__).resolve().parent
 PROJECT = ROOT.parent
 S = 2048
 PINK = (255, 92, 147, 255)
 WHITE = (255, 255, 255, 255)
-FONT = "/usr/share/fonts/abattis-cantarell-vf-fonts/Cantarell-VF.otf"
+WAVE_STROKE = 0.064  # relative to the canvas
+WAVE_X0 = 0.16
+WAVE_X1 = 0.84
+WAVE_AMPLITUDE = 0.098
+WAVE_CYCLES = 2.0
 
 
 def squircle_mask(size: int, ratio: float = 0.225) -> Image.Image:
@@ -32,121 +33,40 @@ def squircle_mask(size: int, ratio: float = 0.225) -> Image.Image:
     return mask.resize((size, size), Image.Resampling.LANCZOS)
 
 
-def word_font(size: int) -> ImageFont.FreeTypeFont:
-    font = ImageFont.truetype(FONT, size)
-    try:
-        font.set_variation_by_axes([800])
-    except Exception:
-        pass
-    return font
-
-
-def note_head(radius_x: int, radius_y: int, angle: float = -24) -> Image.Image:
-    w, h = max(2, radius_x * 2), max(2, radius_y * 2)
-    layer = Image.new("RGBA", (w * 2, h * 2), (0, 0, 0, 0))
-    d = ImageDraw.Draw(layer)
-    d.ellipse((w // 2, h // 2, w // 2 + w, h // 2 + h), fill=WHITE)
-    layer = layer.rotate(angle, resample=Image.Resampling.BICUBIC, expand=True)
-    return layer
-
-
-def quad_curve(p0, p1, p2, steps: int = 18):
-    points = []
+def wave_points(size: int, steps: int = 240) -> list[tuple[float, float]]:
+    x0 = size * WAVE_X0
+    x1 = size * WAVE_X1
+    center = size / 2
+    amplitude = size * WAVE_AMPLITUDE
+    points: list[tuple[float, float]] = []
     for i in range(steps + 1):
         t = i / steps
-        u = 1 - t
         points.append((
-            u * u * p0[0] + 2 * u * t * p1[0] + t * t * p2[0],
-            u * u * p0[1] + 2 * u * t * p1[1] + t * t * p2[1],
+            x0 + (x1 - x0) * t,
+            center + amplitude * math.sin(2 * math.pi * WAVE_CYCLES * t),
         ))
     return points
 
 
-def build_wordmark() -> Image.Image:
-    layer = Image.new("RGBA", (S, S), (0, 0, 0, 0))
-    d = ImageDraw.Draw(layer)
-    font_size = int(S * 0.53)
-    font = word_font(font_size)
-    tracking = int(font_size * 0.015)
-    baseline = int(S * 0.635)
-
-    b_width = d.textlength("B", font=font)
-    i_width = d.textlength("i", font=font)
-    note_w = font_size * 0.62
-    note_h = font_size * 0.64
-    total = b_width + tracking + i_width + tracking + note_w
-    x = (S - total) / 2
-
-    d.text((x, baseline), "B", font=font, anchor="ls", fill=WHITE)
-    x_i = x + b_width + tracking
-    d.text((x_i, baseline), "i", font=font, anchor="ls", fill=WHITE)
-    x_note = x_i + i_width + tracking
-
-    # Apple Music-like beamed double eighth note in place of u: two tilted
-    # note heads, two stems and a slanted beam.
-    top = baseline - note_h
-    stroke = int(note_w * 0.085)
-    left_head_cx = x_note + note_w * 0.20
-    right_head_cx = x_note + note_w * 0.70
-    # Flip the beamed note vertically: heads at the top, stems descending,
-    # and the beam at the bottom.
-    left_head_cy = top + note_h * 0.12
-    right_head_cy = top + note_h * 0.24
-    left_stem_x = left_head_cx + note_w * 0.065
-    right_stem_x = right_head_cx + note_w * 0.065
-    beam_left_y = top + note_h * 0.72
-    beam_right_y = top + note_h * 0.82
-
-    d.line([(left_stem_x, left_head_cy), (left_stem_x, beam_left_y)], fill=WHITE, width=stroke)
-    d.line([(right_stem_x, right_head_cy), (right_stem_x, beam_right_y)], fill=WHITE, width=stroke)
-
-    beam = [
-        (left_stem_x - note_w * 0.065, beam_left_y),
-        (right_stem_x + note_w * 0.055, beam_right_y),
-        (right_stem_x + note_w * 0.055, beam_right_y + note_h * 0.13),
-        (left_stem_x - note_w * 0.065, beam_left_y + note_h * 0.13),
-    ]
-    d.polygon(beam, fill=WHITE)
-
-    for cx, cy in ((left_head_cx, left_head_cy), (right_head_cx, right_head_cy)):
-        head = note_head(int(note_w * 0.165), int(note_h * 0.095), angle=20)
-        layer.alpha_composite(head, (int(cx - head.width / 2), int(cy - head.height / 2)))
-
-    return layer
-
-def build_note_only() -> Image.Image:
-    """Extract the supplied note silhouette and render it white on transparent."""
-    source = ROOT / "biu-note-source.jpg"
-    gray = Image.open(source).convert("L")
-    # Keep the black note, drop the near-white paper and its light border.
-    lut = [0 if v > 205 else min(255, round((205 - v) * 255 / 150)) for v in range(256)]
-    alpha = gray.point(lut).filter(ImageFilter.GaussianBlur(0.8))
-    bbox = alpha.getbbox()
-    if not bbox:
-        raise RuntimeError("note source is empty")
-    alpha = alpha.crop(bbox)
-
-    layer = Image.new("RGBA", (S, S), (0, 0, 0, 0))
-    glyph = Image.new("RGBA", alpha.size, WHITE)
-    glyph.putalpha(alpha)
-    layer.alpha_composite(glyph, ((S - glyph.width) // 2, (S - glyph.height) // 2))
-    return layer
+def wave_mask(size: int) -> Image.Image:
+    scale = 2
+    stroke = max(2, int(size * WAVE_STROKE))
+    mask = Image.new("L", (size * scale, size * scale), 0)
+    draw = ImageDraw.Draw(mask)
+    points = [(round(x * scale), round(y * scale)) for x, y in wave_points(size)]
+    draw.line(points, fill=255, width=stroke * scale, joint="curve")
+    radius = stroke * scale / 2
+    for x, y in (points[0], points[-1]):
+        draw.ellipse((x - radius, y - radius, x + radius, y + radius), fill=255)
+    return mask.resize((size, size), Image.Resampling.LANCZOS)
 
 
-
-def fit_mark(mark: Image.Image, ratio: float = 0.60) -> Image.Image:
-    bbox = mark.getbbox()
-    if not bbox:
-        return mark
-    cut = mark.crop(bbox)
-    scale = min((S * ratio) / cut.width, (S * ratio) / cut.height)
-    cut = cut.resize(
-        (max(1, round(cut.width * scale)), max(1, round(cut.height * scale))),
-        Image.Resampling.LANCZOS,
-    )
-    out = Image.new("RGBA", (S, S), (0, 0, 0, 0))
-    out.alpha_composite(cut, ((S - cut.width) // 2, (S - cut.height) // 2))
-    return out
+def wave_mark(size: int = S) -> Image.Image:
+    mark = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    white = Image.new("RGBA", (size, size), WHITE)
+    white.putalpha(wave_mask(size))
+    mark.alpha_composite(white)
+    return mark
 
 
 def flat_background(size: int = S) -> Image.Image:
@@ -154,14 +74,9 @@ def flat_background(size: int = S) -> Image.Image:
 
 
 def notification_icon(mark: Image.Image) -> Image.Image:
-    layer = Image.new("RGBA", (S, S), (0, 0, 0, 0))
+    layer = Image.new("RGBA", mark.size, (0, 0, 0, 0))
     cut = mark.crop(mark.getbbox())
-    target = S * 0.54
-    scale = min(target / cut.width, target / cut.height)
-    cut = cut.resize((round(cut.width * scale), round(cut.height * scale)), Image.Resampling.LANCZOS)
-    white = Image.new("RGBA", cut.size, WHITE)
-    white.putalpha(cut.getchannel("A"))
-    layer.alpha_composite(white, ((S - cut.width) // 2, (S - cut.height) // 2))
+    layer.alpha_composite(cut, ((mark.width - cut.width) // 2, (mark.height - cut.height) // 2))
     return layer
 
 
@@ -172,19 +87,21 @@ def write_png(image: Image.Image, path: Path, size: int | None = None) -> None:
     image.save(path)
 
 
-def embedded_svg(png: Path, width: int = 1024) -> str:
-    b64 = base64.b64encode(png.read_bytes()).decode("ascii")
-    return (
-        f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{width}" '
-        f'viewBox="0 0 {width} {width}">\n'
-        f'  <image href="data:image/png;base64,{b64}" width="{width}" height="{width}"/>\n'
-        '</svg>\n'
-    )
+def svg_icon() -> str:
+    view = 1024
+    points = wave_points(view)
+    path = "M " + " L ".join(f"{x:.1f} {y:.1f}" for x, y in points)
+    stroke = round(view * WAVE_STROKE)
+    return f'''<svg xmlns="http://www.w3.org/2000/svg" width="{view}" height="{view}" viewBox="0 0 {view} {view}">
+  <rect width="{view}" height="{view}" rx="225" fill="#FF5C93"/>
+  <path d="{path}" fill="none" stroke="#FFFFFF" stroke-width="{stroke}" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+'''
 
 
 def main() -> None:
-    mark = fit_mark(build_note_only(), 0.4256)
     bg = flat_background()
+    mark = wave_mark()
     full = Image.alpha_composite(bg, mark)
     rounded = full.copy()
     rounded.putalpha(squircle_mask(S))
@@ -197,6 +114,7 @@ def main() -> None:
     write_png(bg, ROOT / "biu-background-1024.png", 1024)
     write_png(mark, ROOT / "biu-foreground-1024.png", 1024)
     write_png(notification_icon(mark), ROOT / "biu-notification-192.png", 192)
+    write_png(rounded, ROOT / "biu-preview.png", 1024)
 
     write_png(rounded, PROJECT / "electron" / "icon.png", 1024)
     write_png(rounded, PROJECT / "electron" / "tray.png", 64)
@@ -216,13 +134,22 @@ def main() -> None:
     write_png(bg, res / "drawable-nodpi" / "ic_launcher_background.png", 1024)
     write_png(notification_icon(mark), res / "drawable-nodpi" / "ic_stat_biu.png", 192)
 
-    icon_svg = embedded_svg(ROOT / "biu-icon-1024-rounded.png")
-    (ROOT / "biu-icon.svg").write_text(icon_svg)
-    (PROJECT / "electron" / "icon.svg").write_text(icon_svg)
-    (PROJECT / "electron" / "icon-small.svg").write_text(icon_svg)
-    (PROJECT / "electron" / "icon-micro.svg").write_text(icon_svg)
+    harmony = PROJECT / "platform" / "HarmonyOSPhone"
+    for media in (
+        harmony / "AppScope" / "resources" / "base" / "media",
+        harmony / "entry" / "src" / "main" / "resources" / "base" / "media",
+    ):
+        write_png(rounded, media / "app_icon.png", 1024)
+        write_png(bg, media / "background.png", 1024)
+        write_png(mark, media / "foreground.png", 1024)
+        write_png(rounded, media / "startIcon.png", 152)
 
-    print("biu flat icon generated")
+    svg = svg_icon()
+    (ROOT / "biu-icon.svg").write_text(svg)
+    for name in ("icon.svg", "icon-small.svg", "icon-micro.svg"):
+        (PROJECT / "electron" / name).write_text(svg)
+
+    print("biu wave icon generated")
 
 
 if __name__ == "__main__":
