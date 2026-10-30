@@ -122,7 +122,7 @@ SHA-256: 176b4c650f0033ea9e518ff65b4944fdbf7a3b54433591957c93e816a61fc9af
 
 | 项 | 值 |
 | --- | --- |
-| HarmonyOS release | `release/biu-2.0.0-harmony-phone-release.hap`，`f3ed0e...` |
-| Android | `release/biu-2.0.0-android.apk`，`93a7bb...`，`CN=biu release` |
+| HarmonyOS release | `release/biu-2.0.0-harmony-phone-release.hap`，`7656a0...` |
+| Android | `release/biu-2.0.0-android.apk`，`dfef33...`，`CN=biu release` |
 | 测试 | 40/40 |
 | 提交 | `3a0be6e`，已 push |
