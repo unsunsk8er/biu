@@ -62,10 +62,10 @@ release/biu-2.0.0-harmony-phone-release.hap  # release
 
 ```text
 release/biu-2.0.0-harmony-phone.hap
-SHA-256: 7a3968ff3c46cbb4a6e9e5728423304b2f165a864d41030628df23fe46572c1a
+SHA-256: 46ffd0226ddc1a85e73289a56d8a45e891f3badc367824b25a5744b07e362404
 
 release/biu-2.0.0-harmony-phone-release.hap
-SHA-256: 99ecc2eb9c10135d7c5d3f9275c65fdf2c2e7fada35fb195e00c706a924600c8
+SHA-256: 8cf15f8df5f72107dea47d42b8b3306a0f1d850c241c19a79d3389da12624c5a
 ```
 
 `biu-2.0.0-harmony-phone-release.hap` 是 **release 构建**（`debug:false`），已在 Mate 70 Pro 上验证：

@@ -2304,6 +2304,10 @@ html[data-biu-mobile] .playlist-grid {
   background: linear-gradient(180deg, transparent, rgba(255, 255, 255, 0.92));
 }
 
+[data-theme="light"] .now-playing-comments__footer {
+  background: linear-gradient(180deg, transparent, #fff 38%);
+}
+
 [data-theme="light"] .now-playing-comments__list:hover {
   scrollbar-color: rgba(28, 28, 30, 0.18) transparent;
 }

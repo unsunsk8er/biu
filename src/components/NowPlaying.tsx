@@ -814,13 +814,14 @@ const CommentsPanel = memo(function CommentsPanel({
                 </div>
               </article>
             ))}
-
-            {hasMore && (
-              <button type="button" className="now-playing-comments__more" onClick={onLoadMore} disabled={loadingMore}>
-                {loadingMore ? <Loader2 size={15} className="spin" /> : <MessageCircle size={15} />}
-                {loadingMore ? '加载中...' : '加载更多评论'}
-              </button>
-            )}
+          </div>
+        )}
+        {status === 'ready' && comments.length > 0 && hasMore && (
+          <div className="now-playing-comments__footer">
+            <button type="button" className="now-playing-comments__more" onClick={onLoadMore} disabled={loadingMore}>
+              {loadingMore ? <Loader2 size={15} className="spin" /> : <MessageCircle size={15} />}
+              {loadingMore ? '加载中...' : '加载更多评论'}
+            </button>
           </div>
         )}
       </div>
