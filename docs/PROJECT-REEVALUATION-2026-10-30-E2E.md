@@ -8,7 +8,7 @@
 
 这轮最重要的变化是：播放不再只靠“看截图”，而是有了可重复的真机 E2E；AVSession、seek、后台、通知栏都实际验证过。HAP CI 也有了 self-hosted 路径。
 
-Android 正式 APK 已完成真机安装与启动验收；仍没有可移动 USB 介质，Android 实际播放也尚未自动验收。
+Android 正式 APK 已完成真机安装、启动与手动播放验收；仍没有可移动 USB 介质，HAP runner 也未实际执行。
 
 ## 二、四项任务结果
 
@@ -18,7 +18,7 @@ Android 正式 APK 已完成真机安装与启动验收；仍没有可移动 USB
 | E2E 回退 | **部分** | DASH→渐进流→缓存回退由 8 个单测覆盖；未在设备上制造真实 CDN 故障 |
 | HAP self-hosted CI | **已加入，未执行** | `.github/workflows/harmony-self-hosted.yml`，需要 DevEco Windows runner |
 | 签名物理离线备份 | **部分** | ZIP 已恢复并重签验证；C/D 盘各一份；无可移动介质 |
-| Android 真机安装 | **安装/启动通过** | `23049RAD8C` / Android 15 / pid 11210 / 无 FATAL；播放待手动 |
+| Android 真机安装/播放 | **通过** | `23049RAD8C` / Android 15 / pid 11210 / MediaSession PLAYING / 通知栏 MediaStyle / 无 FATAL |
 | 发布定位 | **完成** | 自用 release；正式 AppGallery 证书暂缓 |
 
 ## 三、E2E 实测
@@ -51,16 +51,19 @@ Android 正式 APK 已完成真机安装与启动验收；仍没有可移动 USB
 
 ## 四、仍阻塞/不足
 
-### 1. Android 真机播放尚未验收
+### 1. Android 真机播放已验收
 
 - 正式 APK 已安装并启动：
   - 设备 `23049RAD8C`，Android 15（SDK 35）
   - `versionName=2.0.0`、`versionCode=140`
   - pid `11210`，无 `FATAL EXCEPTION`
-  - 截图：`.archive/android-smoke/screen.png`
-- 自动点击搜索结果没有触发播放页（ADB 合成点击在 WebView 结果行上未生效），因此**没有完成 Android 实际播放/通知栏/后台验收**。
+- 用户手动点击播放正常；设备侧证据：
+  - MediaSession `state=PLAYING(3)`
+  - AudioFocus 由 Chrome `AudioFocusDelegate` 持有
+  - 通知栏 `channel=biu_media`，MediaStyle，含上一首/暂停/下一首
+- 截图：`.archive/android-smoke/playing2.png`
 - 详见 [Android 真机安装验收](./ANDROID-DEVICE-ACCEPTANCE-2026-10-30.md)。
-- 需要在手机上手动点一首歌，或改用 UIAutomator/Appium 基于节点点击补测。
+- 自动点击结果行未生效；后续可用 UIAutomator/Appium 补全自动 E2E。
 
 ### 2. 物理离线备份（阻塞）
 
@@ -100,19 +103,19 @@ SHA-256: 176b4c650f0033ea9e518ff65b4944fdbf7a3b54433591957c93e816a61fc9af
 | 产品完成度 | 8.5 | 8.5 | 持平 |
 | 架构与可维护性 | 5.5 | 5.5 | 持平 |
 | 安全与隐私 | 7.0 | 7.0 | 持平 |
-| 测试与质量门禁 | 6.0 | **6.9** | HarmonyOS 真机 E2E 通过；Android 安装通过、播放待补 |
+| 测试与质量门禁 | 6.0 | **7.2** | HarmonyOS E2E + Android 安装/播放/通知验收 |
 | 性能 | 7.0 | 7.0 | 持平 |
-| 跨平台与发布 | 7.0 | **7.3** | HAP CI 路径加入；Android 真机安装成功 |
+| 跨平台与发布 | 7.0 | **7.4** | HAP CI 路径 + Android 真机播放通过 |
 | 文档 | 8.0 | 8.0 | 持平 |
 | 合规 | 6.0 | 6.0 | 正式证书暂缓 |
-| **综合** | **6.9** | **7.1** | 安装验收完成；USB 备份与 HAP runner 仍缺 |
+| **综合** | **6.9** | **7.2** | Android 验收完成；USB 备份与 HAP runner 仍缺 |
 
 ## 六、下一步
 
-1. 在 Android 手机上手动点一首歌，完成播放/通知栏/后台验收；或改用 UIAutomator 节点点击。
-2. 插入 USB，把签名 ZIP 复制到物理离线介质。
-3. 注册 HarmonyOS self-hosted runner，跑一次 HAP workflow。
-4. 增加 CDN 故障注入 E2E。
+1. 插入 USB，把签名 ZIP 复制到物理离线介质。
+2. 注册 HarmonyOS self-hosted runner，跑一次 HAP workflow。
+3. 增加 CDN 故障注入 E2E。
+4. 可选：用 UIAutomator/Appium 把 Android 点击播放自动化。
 5. 继续不加功能，补 `PlayerContext` 拆分/测试。
 
 ## 七、产物
