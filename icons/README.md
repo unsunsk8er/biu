@@ -2,7 +2,8 @@
 
 ## Direction
 
-- Full-bleed / squircle hot-pink field (`#FF5C93`).
+- Full-bleed / squircle rose field, with a subtle same-hue gradient and a soft
+  deep-rose shadow for depth.
 - One continuous white **sound-wave signal**:
   - enters beyond the left edge and leaves beyond the right edge;
   - fine 50/1024 core, with a soft white bloom and a brighter inner glow;

@@ -1,10 +1,9 @@
 ﻿#!/usr/bin/env python3
-"""Generate the flat biu icon: hot-pink field + one luminous sound wave.
+"""Generate the biu icon: a luminous sound-wave signal on a rose field.
 
 The wave is intentionally full-bleed: it enters beyond the left edge and leaves
-beyond the right edge, so the icon reads as a signal passing through rather
-than a short, static squiggle. A soft white bloom is layered under a fine
-white core; notification icons use the core only.
+beyond the right edge. A same-hue gradient, a soft deep-rose shadow and a white
+bloom give it depth; notification icons use the crisp core only.
 """
 from __future__ import annotations
 
@@ -18,6 +17,7 @@ ROOT = Path(__file__).resolve().parent
 PROJECT = ROOT.parent
 S = 2048
 PINK = (255, 92, 147, 255)
+DEEP = (176, 20, 74, 255)
 WHITE = (255, 255, 255, 255)
 WAVE_STROKE = 0.049  # fine core, relative to canvas
 WAVE_X0 = -0.06
@@ -39,7 +39,18 @@ def squircle_mask(size: int, ratio: float = 0.225) -> Image.Image:
     return mask.resize((size, size), Image.Resampling.LANCZOS)
 
 
-def wave_samples(size: int, steps: int = 1400):
+def gradient_background(size: int = S) -> Image.Image:
+    # Four corner colours in the same rose family; resizing gives a smooth
+    # diagonal light field while the original #FF5C93 remains the centre tone.
+    field = Image.new("RGBA", (2, 2), PINK)
+    field.putpixel((0, 0), (255, 123, 164, 255))
+    field.putpixel((1, 0), (255, 92, 147, 255))
+    field.putpixel((0, 1), (249, 64, 126, 255))
+    field.putpixel((1, 1), (231, 39, 105, 255))
+    return field.resize((size, size), Image.Resampling.BICUBIC)
+
+
+def wave_samples(size: int, steps: int = 1600):
     x0 = size * WAVE_X0
     x1 = size * WAVE_X1
     center = size / 2
@@ -47,8 +58,6 @@ def wave_samples(size: int, steps: int = 1400):
     radius = size * WAVE_STROKE / 2
     for i in range(steps + 1):
         t = i / steps
-        # Keep energy at the clipped edges so the line visibly continues
-        # through the icon instead of stopping in a round cap.
         envelope = WAVE_EDGE_ENERGY + (1 - WAVE_EDGE_ENERGY) * math.sin(math.pi * t) ** WAVE_ENVELOPE
         x = x0 + (x1 - x0) * t
         angle = 2 * math.pi * (WAVE_CYCLES * t + WAVE_CHIRP * t * t)
@@ -67,10 +76,6 @@ def core_mask(size: int) -> Image.Image:
     return mask.resize((size, size), Image.Resampling.LANCZOS)
 
 
-def flat_background(size: int = S) -> Image.Image:
-    return Image.new("RGBA", (size, size), PINK)
-
-
 def core_mark(size: int = S) -> Image.Image:
     mark = Image.new("RGBA", (size, size), (0, 0, 0, 0))
     white = Image.new("RGBA", (size, size), WHITE)
@@ -84,7 +89,7 @@ def glow_mark(size: int = S) -> Image.Image:
     wide = core.filter(ImageFilter.GaussianBlur(size * 0.037))
     tight = core.filter(ImageFilter.GaussianBlur(size * 0.014))
     mark = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-    for mask, alpha in ((wide, 0.38), (tight, 0.95)):
+    for mask, alpha in ((wide, 0.30), (tight, 0.72)):
         layer = Image.new("RGBA", (size, size), WHITE)
         layer.putalpha(mask.point(lambda v: int(v * alpha)))
         mark.alpha_composite(layer)
@@ -92,6 +97,16 @@ def glow_mark(size: int = S) -> Image.Image:
     white.putalpha(core)
     mark.alpha_composite(white)
     return mark
+
+
+def shadow_mark(size: int = S) -> Image.Image:
+    core = core_mask(size)
+    shadow = core.filter(ImageFilter.GaussianBlur(size * 0.014))
+    layer = Image.new("RGBA", (size, size), DEEP)
+    layer.putalpha(shadow.point(lambda v: int(v * 0.38)))
+    shifted = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    shifted.alpha_composite(layer, (int(size * 0.010), int(size * 0.018)))
+    return shifted
 
 
 def notification_icon(core: Image.Image) -> Image.Image:
@@ -121,10 +136,12 @@ def embedded_svg(png: Path) -> str:
 
 
 def main() -> None:
-    bg = flat_background()
+    bg = gradient_background()
     core = core_mark()
     lit = glow_mark()
-    full = Image.alpha_composite(bg, lit)
+    full = bg.copy()
+    full.alpha_composite(shadow_mark())
+    full.alpha_composite(lit)
     rounded = full.copy()
     rounded.putalpha(squircle_mask(S))
 
