@@ -68,8 +68,9 @@ export class BiuBridge {
           '(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
         'Accept': '*/*'
       };
-      if (url.indexOf('bilibili') >= 0) {
+      if (url.indexOf('bilibili') >= 0 || url.indexOf('bilivideo') >= 0) {
         headers['Referer'] = 'https://www.bilibili.com/';
+        headers['Origin'] = 'https://www.bilibili.com';
       }
       const response = await new Promise<http.HttpResponse>((resolve, reject) => {
         http.createHttp().request(url, {
@@ -88,11 +89,13 @@ export class BiuBridge {
         });
       });
       if (response.responseCode < 200 || response.responseCode >= 300) {
+        console.error(`[biu-native-cache] http ${response.responseCode} ${url.slice(0, 120)}`);
         this.emitAudioFile(requestId, '');
         return;
       }
       const buffer = response.result as ArrayBuffer;
       if (!buffer || buffer.byteLength === 0) {
+        console.error('[biu-native-cache] empty body');
         this.emitAudioFile(requestId, '');
         return;
       }
@@ -102,8 +105,16 @@ export class BiuBridge {
       fileIo.writeSync(file.fd, buffer);
       fileIo.closeSync(file);
       const playable = await this.transcodeAudioFile(requestId, path);
+      if (playable !== path) {
+        try {
+          fileIo.unlinkSync(path);
+        } catch (error) {
+          // Keep the raw segment if cleanup fails; it is only cache debris.
+        }
+      }
       this.emitAudioFile(requestId, `file://${playable}`);
     } catch (error) {
+      console.error(`[biu-native-cache] failed ${JSON.stringify(error)}`);
       this.emitAudioFile(requestId, '');
     }
   }
@@ -114,7 +125,7 @@ export class BiuBridge {
    * M4A file that the native player can use in the background.
    */
   private async transcodeAudioFile(requestId: string, sourcePath: string): Promise<string> {
-    const targetPath = `${this.context.cacheDir}/biu-audio-${requestId}.m4a`;
+    const targetPath = `${this.context.cacheDir}/biu-audio-${requestId}.mp4`;
     let sourceFile: fileIo.File | undefined;
     let targetFile: fileIo.File | undefined;
     let transcoder: media.AVTranscoder | undefined;
@@ -141,7 +152,7 @@ export class BiuBridge {
       });
 
       await transcoder.prepare({
-        fileFormat: media.ContainerFormatType.CFT_MPEG_4A,
+        fileFormat: media.ContainerFormatType.CFT_MPEG_4,
         audioCodec: media.CodecMimeType.AUDIO_AAC,
         audioBitrate: 192000
       });

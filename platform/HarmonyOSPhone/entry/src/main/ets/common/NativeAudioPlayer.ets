@@ -1,5 +1,6 @@
 import { webview } from '@kit.ArkWeb';
 import { media } from '@kit.MediaKit';
+import { fileIo } from '@kit.CoreFileKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 
 /**
@@ -10,6 +11,7 @@ import { BusinessError } from '@kit.BasicServicesKit';
 export class NativeAudioPlayer implements webview.NativeMediaPlayerBridge {
   private handler: webview.NativeMediaPlayerHandler;
   private source: string;
+  private sourceFile?: fileIo.File;
   private player?: media.AVPlayer;
   private prepared: boolean = false;
   private released: boolean = false;
@@ -42,7 +44,15 @@ export class NativeAudioPlayer implements webview.NativeMediaPlayerBridge {
       }
       this.player = player;
       this.bind(player);
-      player.url = this.source;
+      // AVPlayer rejects file:// URLs. An independent local file is addressed
+      // as fd://<fd>; the descriptor stays open until release().
+      if (this.source.startsWith('file://')) {
+        const path = this.source.slice('file://'.length);
+        this.sourceFile = fileIo.openSync(path, fileIo.OpenMode.READ_ONLY);
+        player.url = `fd://${this.sourceFile.fd}`;
+      } else {
+        player.url = this.source;
+      }
     } catch (error) {
       this.fail(error);
     }
@@ -153,6 +163,14 @@ export class NativeAudioPlayer implements webview.NativeMediaPlayerBridge {
     this.player = undefined;
     if (player) {
       player.release().catch(() => {});
+    }
+    if (this.sourceFile) {
+      try {
+        fileIo.closeSync(this.sourceFile);
+      } catch (error) {
+        // ignore close failure
+      }
+      this.sourceFile = undefined;
     }
   }
 

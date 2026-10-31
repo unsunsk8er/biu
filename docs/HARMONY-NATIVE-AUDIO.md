@@ -22,25 +22,26 @@ PIPELINE_ERROR_EXTERNAL_RENDERER_FAILED
 
 ```text
 B 站 m4s
-  → BiuBridge 下载到 cacheDir
-  → AVTranscoder 转封装为 M4A（AAC 192 kbps）
+  → BiuBridge 下载到 cacheDir（主 CDN 失败时自动尝试备用 CDN）
+  → AVTranscoder 转封装为 MP4（AAC 192 kbps）
   → file:// 本地文件
   → ArkWeb 原生媒体接管
-  → AVPlayer 播放本地 M4A
+  → AVPlayer 通过 fd:// 播放本地 MP4
 ```
 
 ### 缓存桥
 
 `platform/HarmonyOSPhone/entry/src/main/ets/common/BiuBridge.ets`
 
-- `cacheAudioFile()` 下载 `.m4s`
+- `cacheAudioFile()` 下载 `.m4s`（`bilivideo.com` CDN 同样带 Referer/Origin）
 - `transcodeAudioFile()` 使用 `media.createAVTranscoder()`
   - `fdSrc`：下载的 m4s
-  - `fdDst`：`cacheDir/biu-audio-<id>.m4a`
-  - `fileFormat: CFT_MPEG_4A`
+  - `fdDst`：`cacheDir/biu-audio-<id>.mp4`
+  - `fileFormat: CFT_MPEG_4`
   - `audioCodec: AUDIO_AAC`
   - `audioBitrate: 192000`
-- 成功返回 M4A 路径；失败保留 raw m4s 作为前台回退
+- 成功返回 MP4 路径；失败保留 raw m4s 作为前台回退
+- 前端对主地址 + 备用 CDN 逐个重试，避免单个 CDN 超时导致一直转圈
 
 ### 原生播放器
 
@@ -48,7 +49,7 @@ B 站 m4s
 
 - 实现 `webview.NativeMediaPlayerBridge`
 - 只接管 `MediaType.AUDIO`，视频交给 ArkWeb
-- AVPlayer 只接受 `file://` 本地源
+- AVPlayer 不接受 `file://`；本地源通过打开缓存文件得到的 `fd://<fd>` 播放
 - 提供 play/pause/seek/volume/mute/rate 和原生状态回传
 
 `Index.ets` 开启：
@@ -62,10 +63,10 @@ B 站 m4s
 ### 前端
 
 `PlayerContext.tsx` 在 HarmonyOS 上先调用 `cacheHarmonyAudio()`，拿到转封装后的
-`file://...m4a` 再 `loadSource`。这样 HTML 音频与原生 AVPlayer 使用同一个本地文件，
+`file://...mp4` 再 `loadSource`。这样 HTML 音频与原生 AVPlayer 使用同一个本地文件，
 非同源 CDN 请求不再参与播放。
 
-CSP 增加 `media-src ... file:`，否则 ArkWeb 会拒绝本地 M4A：
+CSP 增加 `media-src ... file:`，否则 ArkWeb 会拒绝本地文件：
 
 ```text
 Media load rejected by URL safety check
@@ -78,8 +79,8 @@ Media load rejected by URL safety check
 - 首次播放：下载 + 转封装后开始，约数秒
 - 播放中按 Home：`HpaeSinkInputNode` 保持 `RUNNING`，没有 `STOPPED/RELEASED`
 - 返回应用：仍为播放状态
-- 日志可见 AVPlayer `timeUpdate` / `durationUpdate` 和本地 M4A 路径
-- 缓存目录生成约 5.5 MB 的 `biu-audio-*.m4a`
+- 日志可见 AVPlayer `timeUpdate` / `durationUpdate` 和本地 MP4 路径
+- 缓存目录生成约 5.5 MB 的 `biu-audio-*.mp4`
 
 ## 代价
 

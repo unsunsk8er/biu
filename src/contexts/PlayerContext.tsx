@@ -745,11 +745,41 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         // take over the local M4A so playback survives Home.
         if (isHarmonyApp() && source.audioUrl) {
           try {
-            const fileUrl = await cacheHarmonyAudio(source.audioUrl)
+            const fileUrl = await cacheHarmonyAudio([source.audioUrl, ...(source.backupUrls || [])])
             await loadSource(fileUrl, 0)
             if (cancelled) return
             loaded = true
             source = { ...source, audioUrl: fileUrl, backupUrls: [] }
+          } catch (err) {
+            lastError = err
+          }
+        }
+
+        if (!loaded && isHarmonyApp() && currentTrack?.cid) {
+          try {
+            const progressive = await extractAudioProgressive(
+              currentTrack.bvid || currentTrack.id,
+              Number(currentTrack.cid),
+              {
+                aid: currentTrack.aid,
+                title: currentTrack.title,
+                artist: currentTrack.artist,
+                coverUrl: currentTrack.coverUrl,
+                duration: currentTrack.duration,
+              },
+            )
+            for (const [attempt, url] of candidateUrls(progressive).slice(0, 6).entries()) {
+              if (cancelled) return
+              try {
+                await loadSource(url, attempt)
+                if (cancelled) return
+                loaded = true
+                source = progressive
+                break
+              } catch (err) {
+                lastError = err
+              }
+            }
           } catch (err) {
             lastError = err
           }
