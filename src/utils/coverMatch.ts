@@ -37,7 +37,7 @@ const pending = new Map<string, Promise<MatchedCover | null>>()
 // "determined"; only the explicit refresh button may retry it. This is kept
 // separately from the positive cover cache so a no-match result is not retried
 // automatically on every playback or app restart.
-const ATTEMPT_KEY = 'biu_cover_match_attempted_v2'
+const ATTEMPT_KEY = 'biu_cover_match_attempted_v3'
 const MAX_ATTEMPTS = 2000
 
 function attemptKey(track: Pick<Track, 'id' | 'title' | 'artist'>): string {

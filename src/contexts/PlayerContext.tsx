@@ -5,7 +5,7 @@ import { addRecentTrack, toggleFavoriteTrack, loadFavoriteTracks, updateTrackEve
 import { useAppSettings } from '@/hooks/useAppSettings'
 import { readStoredItem, writeStoredItem } from '@/utils/persistentStorage'
 import { coverMatchWasAttempted, findMatchedCover, markCoverMatchAttempted, type MatchedCover } from '@/utils/coverMatch'
-import { inferCoverQuery } from '@/utils/coverMatchQuery'
+import { inferCoverQuery, isUploaderLike } from '@/utils/coverMatchQuery'
 import { isAndroidApp, isHarmonyApp } from '@/utils/mobile'
 import {
   audioCacheKey,
@@ -1268,10 +1268,24 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       // catalogue entries can disagree on title/artist (especially for a
       // multi-part collection), and that used to make the player show a valid
       // cover next to the wrong song name.
+      //
+      // The one safe repair is the artist: compilations expose the uploader
+      // (e.g. "典藏音乐") where the track has no artist. Only replace that
+      // uploader-style value, and only with a provider artist that itself looks
+      // like a real artist. A meaningful existing artist is never touched.
+      const providerArtist = String(match.artist || '').trim()
+      const repairArtist = isUploaderLike(track.artist)
+        && providerArtist.length > 0
+        && !isUploaderLike(providerArtist)
       const coverUrl = match.coverUrl || track.coverUrl
-      if (coverUrl === track.coverUrl && track.coverMatched) return track
+      if (
+        coverUrl === track.coverUrl
+        && (!repairArtist || providerArtist === track.artist)
+        && track.coverMatched
+      ) return track
       return {
         ...track,
+        artist: repairArtist ? providerArtist : track.artist,
         coverUrl,
         coverMatched: Boolean(match.coverUrl) || track.coverMatched,
         metadataMatched: true,
