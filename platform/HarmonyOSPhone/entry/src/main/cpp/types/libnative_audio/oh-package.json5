@@ -1,0 +1,9 @@
+{
+  "name": "libnative_audio.so",
+  "version": "1.0.0",
+  "description": "Native MP4 faststart remuxer for biu",
+  "main": "",
+  "author": "",
+  "license": "",
+  "types": "./index.d.ts"
+}

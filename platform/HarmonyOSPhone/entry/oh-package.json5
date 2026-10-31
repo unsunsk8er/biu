@@ -5,6 +5,8 @@
   "main": "",
   "author": "",
   "license": "",
-  "dependencies": {}
+  "dependencies": {
+    "libnative_audio.so": "file:./src/main/cpp/types/libnative_audio"
+  }
 }
 

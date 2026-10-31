@@ -5,6 +5,7 @@ import { avSession } from '@kit.AVSessionKit';
 import { image } from '@kit.ImageKit';
 import { fileIo } from '@kit.CoreFileKit';
 import { media } from '@kit.MediaKit';
+import { remuxFastStart } from 'libnative_audio.so';
 
 interface NativeAudioPayload {
   time?: number;
@@ -328,6 +329,16 @@ export class BiuBridge {
       });
       await transcoder.start();
       await completed;
+      // AVPlayer frequently rejects MP4 files whose moov atom is after mdat.
+      // The native module reorders moov first and fixes stco/co64 offsets.
+      const fastStartPath = targetPath.replace(/\.mp4$/, '.fast.mp4');
+      try {
+        if (remuxFastStart(targetPath, fastStartPath)) {
+          return fastStartPath;
+        }
+      } catch (error) {
+        // Fall back to the original container if native remux is unavailable.
+      }
       return targetPath;
     } catch (error) {
       // Keep the old raw-cache fallback for devices whose transcoder rejects

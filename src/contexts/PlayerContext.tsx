@@ -750,39 +750,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         let loaded = false
         let lastError: unknown = null
 
-        // HarmonyOS native AVPlayer handles a progressive MP4 network stream
-        // reliably (with Referer via MediaSource); prefer it over a local
-        // transcode when the native takeover is enabled.
-        if (HARMONY_NATIVE_AUDIO_ENABLED && isHarmonyApp() && currentTrack?.cid) {
-          try {
-            const progressive = await extractAudioProgressive(
-              currentTrack.bvid || currentTrack.id,
-              Number(currentTrack.cid),
-              {
-                aid: currentTrack.aid,
-                title: currentTrack.title,
-                artist: currentTrack.artist,
-                coverUrl: currentTrack.coverUrl,
-                duration: currentTrack.duration,
-              },
-            )
-            for (const [attempt, url] of candidateUrls(progressive).slice(0, 6).entries()) {
-              if (cancelled) return
-              try {
-                await loadSource(url, attempt)
-                if (cancelled) return
-                loaded = true
-                source = progressive
-                break
-              } catch (err) {
-                lastError = err
-              }
-            }
-          } catch (err) {
-            lastError = err
-          }
-        }
-
         // HarmonyOS: ArkWeb pauses HTML <audio> when the ability goes to the
         // background. Download + transcode once, then let the native AVPlayer
         // take over the local M4A so playback survives Home.
