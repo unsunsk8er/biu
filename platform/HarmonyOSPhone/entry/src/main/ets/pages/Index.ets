@@ -91,8 +91,7 @@ struct Index {
           name: 'BiuHarmony',
           methodList: ['getVersion', 'getPlatform', 'openExternal', 'exitApp', 'request',
             'setMediaSession', 'setMediaSessionLyric', 'setMediaSessionState', 'clearMediaSession', 'setBackMode',
-            'cacheAudioFile', 'playNativeAudio', 'pauseNativeAudio', 'resumeNativeAudio', 'seekNativeAudio',
-            'setNativeVolume', 'stopNativeAudio'],
+            'cacheAudioFile'],
           controller: this.controller,
           permission: RESOURCE_PERMISSION
         })
