@@ -57,12 +57,21 @@ export class BiuBridge {
     return this.allowSystemBack;
   }
 
-  cacheAudioFile(requestId: string, url: string): void {
-    void this.downloadAudioFile(requestId, url);
+  cacheAudioFile(requestId: string, url: string, cacheKey?: string): void {
+    void this.downloadAudioFile(requestId, url, cacheKey || requestId);
   }
 
-  private async downloadAudioFile(requestId: string, url: string): Promise<void> {
+  private async downloadAudioFile(requestId: string, url: string, cacheKey: string): Promise<void> {
+    const base = this.cacheBaseName(cacheKey);
+    const cachedPath = `${this.context.cacheDir}/${base}.mp4`;
     try {
+      // Reusing the already transcoded file avoids re-downloading a song on
+      // every playback and is also what keeps the cache bounded over time.
+      if (this.cachedFileExists(cachedPath)) {
+        this.pruneAudioCache();
+        this.emitAudioFile(requestId, `file://${cachedPath}`);
+        return;
+      }
       const headers: Record<string, string> = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ' +
           '(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
@@ -99,19 +108,20 @@ export class BiuBridge {
         this.emitAudioFile(requestId, '');
         return;
       }
-      const path = `${this.context.cacheDir}/biu-audio-${requestId}.m4s`;
-      const file = fileIo.openSync(path,
+      const rawPath = `${this.context.cacheDir}/${base}.m4s`;
+      const file = fileIo.openSync(rawPath,
         fileIo.OpenMode.CREATE | fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.TRUNC);
       fileIo.writeSync(file.fd, buffer);
       fileIo.closeSync(file);
-      const playable = await this.transcodeAudioFile(requestId, path);
-      if (playable !== path) {
+      const playable = await this.transcodeAudioFile(rawPath, cachedPath);
+      if (playable !== rawPath) {
         try {
-          fileIo.unlinkSync(path);
+          fileIo.unlinkSync(rawPath);
         } catch (error) {
           // Keep the raw segment if cleanup fails; it is only cache debris.
         }
       }
+      this.pruneAudioCache();
       this.emitAudioFile(requestId, `file://${playable}`);
     } catch (error) {
       console.error(`[biu-native-cache] failed ${JSON.stringify(error)}`);
@@ -119,13 +129,58 @@ export class BiuBridge {
     }
   }
 
+  private cacheBaseName(cacheKey: string): string {
+    const safe = String(cacheKey || '')
+      .replace(/[^A-Za-z0-9_-]+/g, '_')
+      .slice(0, 100);
+    return `biu-audio-v3-${safe || 'track'}`;
+  }
+
+  private cachedFileExists(path: string): boolean {
+    try {
+      return fileIo.statSync(path).size > 1024;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  private pruneAudioCache(): void {
+    try {
+      const names = fileIo.listFileSync(this.context.cacheDir)
+        .filter((name: string) => name.indexOf('biu-audio-') === 0);
+      const entries: Array<[string, number, number]> = [];
+      for (const name of names) {
+        const path = `${this.context.cacheDir}/${name}`;
+        try {
+          const stat = fileIo.statSync(path);
+          entries.push([path, stat.mtime, stat.size]);
+        } catch (error) {
+          // Ignore file races; the next prune will retry.
+        }
+      }
+      entries.sort((a: [string, number, number], b: [string, number, number]) => b[1] - a[1]);
+      let total = 0;
+      for (let i = 0; i < entries.length; i++) {
+        total += entries[i][2];
+        if (i >= 20 || total > 250 * 1024 * 1024) {
+          try {
+            fileIo.unlinkSync(entries[i][0]);
+          } catch (error) {
+            // A file in use may be skipped; it will be retried next time.
+          }
+        }
+      }
+    } catch (error) {
+      // Cache maintenance must never block playback.
+    }
+  }
+
   /**
    * Bilibili DASH audio is fragmented MP4. AVPlayer cannot open the .m4s
    * segment directly (EXTERNAL_RENDERER_FAILED), so transcode it to a standard
-   * M4A file that the native player can use in the background.
+   * MP4 file that the native player can use in the background.
    */
-  private async transcodeAudioFile(requestId: string, sourcePath: string): Promise<string> {
-    const targetPath = `${this.context.cacheDir}/biu-audio-${requestId}.mp4`;
+  private async transcodeAudioFile(sourcePath: string, targetPath: string): Promise<string> {
     let sourceFile: fileIo.File | undefined;
     let targetFile: fileIo.File | undefined;
     let transcoder: media.AVTranscoder | undefined;

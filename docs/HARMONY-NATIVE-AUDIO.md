@@ -34,14 +34,16 @@ B 站 m4s
 `platform/HarmonyOSPhone/entry/src/main/ets/common/BiuBridge.ets`
 
 - `cacheAudioFile()` 下载 `.m4s`（`bilivideo.com` CDN 同样带 Referer/Origin）
+- 缓存按稳定的 `bvid:cid` key 复用，重播同一首不再下载/转封装
 - `transcodeAudioFile()` 使用 `media.createAVTranscoder()`
   - `fdSrc`：下载的 m4s
-  - `fdDst`：`cacheDir/biu-audio-<id>.mp4`
+  - `fdDst`：`cacheDir/biu-audio-v3-<key>.mp4`
   - `fileFormat: CFT_MPEG_4`
   - `audioCodec: AUDIO_AAC`
   - `audioBitrate: 192000`
-- 成功返回 MP4 路径；失败保留 raw m4s 作为前台回退
+- 成功返回 MP4 路径并删除 raw m4s；失败保留 raw m4s 作为前台回退
 - 前端对主地址 + 备用 CDN 逐个重试，避免单个 CDN 超时导致一直转圈
+- 缓存上限：最多 **20 首 / 250 MB**，超限按最旧文件淘汰
 
 ### 原生播放器
 

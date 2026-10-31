@@ -16,7 +16,7 @@ if (typeof window !== 'undefined') {
   }
 }
 
-function cacheOne(url: string, timeoutMs: number): Promise<string> {
+function cacheOne(url: string, cacheKey: string, timeoutMs: number): Promise<string> {
   const bridge = window.BiuHarmony
   if (!bridge?.cacheAudioFile) return Promise.reject(new Error('native audio cache unavailable'))
   const requestId = `audio-${Date.now()}-${++seq}`
@@ -27,7 +27,7 @@ function cacheOne(url: string, timeoutMs: number): Promise<string> {
     }, timeoutMs)
     pending.set(requestId, { resolve, reject, timer })
     try {
-      bridge.cacheAudioFile(requestId, url)
+      bridge.cacheAudioFile(requestId, url, cacheKey)
     } catch (error) {
       pending.delete(requestId)
       window.clearTimeout(timer)
@@ -41,9 +41,11 @@ function cacheOne(url: string, timeoutMs: number): Promise<string> {
  * return a local file:// URL. CDN hosts are not interchangeable: a host that
  * times out for native HTTP while another backup host is reachable is common,
  * so try every candidate URL before falling back to the WebView stream.
+ * A stable cacheKey lets the native side reuse the transcoded file.
  */
 export async function cacheHarmonyAudio(
   urlOrUrls: string | string[],
+  cacheKey = '',
   timeoutMs = 20_000,
 ): Promise<string> {
   const urls = (Array.isArray(urlOrUrls) ? urlOrUrls : [urlOrUrls])
@@ -56,7 +58,7 @@ export async function cacheHarmonyAudio(
   let lastError: unknown = new Error('no audio cache candidate')
   for (const url of urls) {
     try {
-      return await cacheOne(url, timeoutMs)
+      return await cacheOne(url, cacheKey, timeoutMs)
     } catch (error) {
       lastError = error
     }

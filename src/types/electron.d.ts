@@ -127,7 +127,7 @@ export interface BiuHarmonyBridge {
   setMediaSessionState: (isPlaying: boolean, positionSec: number, durationSec: number) => void
   clearMediaSession: () => void
   setBackMode: (allowSystemBack: boolean) => void
-  cacheAudioFile: (requestId: string, url: string) => void
+  cacheAudioFile: (requestId: string, url: string, cacheKey?: string) => void
 }
 
 declare global {

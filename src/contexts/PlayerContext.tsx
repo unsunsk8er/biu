@@ -745,7 +745,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         // take over the local M4A so playback survives Home.
         if (isHarmonyApp() && source.audioUrl) {
           try {
-            const fileUrl = await cacheHarmonyAudio([source.audioUrl, ...(source.backupUrls || [])])
+            const fileUrl = await cacheHarmonyAudio([source.audioUrl, ...(source.backupUrls || [])], currentTrack!.id)
             await loadSource(fileUrl, 0)
             if (cancelled) return
             loaded = true
@@ -866,7 +866,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         // even though the same URL is valid for this device.
         if (!loaded && !cancelled && isHarmonyApp() && source.audioUrl) {
           try {
-            const fileUrl = await cacheHarmonyAudio(source.audioUrl)
+            const fileUrl = await cacheHarmonyAudio(source.audioUrl, currentTrack!.id)
             await loadSource(fileUrl, 0)
             if (cancelled) return
             loaded = true

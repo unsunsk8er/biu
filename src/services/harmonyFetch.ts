@@ -19,7 +19,7 @@ function shouldNativeFetch(url: string): boolean {
   if (/^https:\/\/(api|passport)\.bilibili\.com\//.test(url)) return true
   // Metadata/lyrics providers are also cross-origin; use the same native
   // transport instead of relying on each catalogue's CORS policy.
-  return /^https:\/\/(music\.163\.com|c\.y\.qq\.com|songsearch\.kugou\.com|itunes\.apple\.com)\//.test(url)
+  return /^https:\/\/(music\.163\.com|c\.y\.qq\.com|songsearch\.kugou\.com|itunes\.apple\.com|(?:www\.)?oiapi\.net)\//.test(url)
 }
 
 function headersToObject(headers: HeadersInit | undefined): Record<string, string> {
