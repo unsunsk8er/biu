@@ -4,9 +4,11 @@ import display from '@ohos.display';
 import { BiuBridge } from '../common/BiuBridge';
 import { NativeSearchItem } from '../common/NativeBiliApi';
 import { NativeDownload, NativeTrack } from '../common/NativeLibrary';
+import { NativeQueue } from '../common/NativeQueue';
 import { NativeDownloadsPage } from './NativeDownloadsPage';
 import { NativePlayerPage, NativePlayerState } from './NativePlayerPage';
 import { NativePlaylistsPage } from './NativePlaylistsPage';
+import { NativeQueuePage } from './NativeQueuePage';
 import { NativeSearchPage } from './NativeSearchPage';
 import { NativeSettingsPage } from './NativeSettingsPage';
 
@@ -14,12 +16,14 @@ import { NativeSettingsPage } from './NativeSettingsPage';
 @Component
 struct Index {
   private bridge: BiuBridge = new BiuBridge(getContext(this) as common.UIAbilityContext);
+  private queue: NativeQueue = new NativeQueue(getContext(this) as common.UIAbilityContext);
   @State private bottomInset: number = 0;
   @State private topInset: number = 48;
   @State private activeTab: string = '/search';
   @State private nativeSearchOpen: boolean = true;
   @State private nativePlaylistsOpen: boolean = false;
   @State private nativeDownloadsOpen: boolean = false;
+  @State private queueOpen: boolean = false;
   @State private miniVisible: boolean = false;
   @State private miniOpen: boolean = false;
   @State private currentBvid: string = '';
@@ -35,9 +39,45 @@ struct Index {
   @State private miniDuration: number = 0;
   @StorageLink('biu-theme') private nativeTheme: string = 'light';
 
+  private parseDuration(value: string): number {
+    const parts = value.split(':');
+    if (parts.length === 2) return Number(parts[0]) * 60 + Number(parts[1]);
+    if (parts.length === 3) return Number(parts[0]) * 3600 + Number(parts[1]) * 60 + Number(parts[2]);
+    return 0;
+  }
+
+  private applyTrack(track: NativeTrack | null): void {
+    if (!track) return;
+    this.currentBvid = track.localPath ? '' : track.bvid;
+    this.currentLocalPath = track.localPath || '';
+    this.localTitle = track.title;
+    this.localArtist = track.artist;
+    this.localCover = track.coverUrl;
+    this.miniTitle = track.title;
+    this.miniArtist = track.artist;
+    this.miniCover = track.coverUrl;
+    this.miniVisible = true;
+    this.miniOpen = true;
+  }
+
+  private playQueueTracks(tracks: NativeTrack[], index: number): void {
+    this.applyTrack(this.queue.setQueue(tracks, index));
+  }
+
+  private playQueueIndex(index: number): void {
+    this.applyTrack(this.queue.setIndex(index));
+  }
+
+  private nextTrack(manual: boolean): void {
+    this.applyTrack(this.queue.next(manual));
+  }
+
+  private previousTrack(): void {
+    this.applyTrack(this.queue.previous());
+  }
+
   aboutToAppear(): void {
-    this.injectInsets();
-    window.getLastWindow(getContext(this)).then((mainWindow: window.Window) => {
+    this.injectInsets();    window.getLastWindow(getContext(this)).then((mainWindow: window.Window) => {
       mainWindow.on('avoidAreaChange', () => {
         this.injectInsets();
       });
@@ -71,6 +111,7 @@ struct Index {
     .backgroundColor(Color.Transparent)
     .stateEffect(false)
     .onClick(() => {
+      if (this.queueOpen) this.queueOpen = false;
       if (this.miniOpen) this.miniOpen = false;
       if (path === '/search') {
         this.activeTab = path;
@@ -162,6 +203,10 @@ struct Index {
   }
 
   onBackPress(): boolean {
+    if (this.queueOpen) {
+      this.queueOpen = false;
+      return true;
+    }
     if (this.miniOpen) {
       this.miniOpen = false;
       return true;
@@ -193,14 +238,19 @@ struct Index {
         if (this.nativeSearchOpen) {
           NativeSearchPage({
             topInset: this.topInset,
-            onSelect: (item: NativeSearchItem) => {
-              this.currentLocalPath = '';
-              this.currentBvid = item.bvid;
-              this.miniTitle = item.title;
-              this.miniArtist = item.author;
-              this.miniCover = item.pic;
-              this.miniVisible = true;
-              this.miniOpen = true;
+            onSelect: (item: NativeSearchItem, list: NativeSearchItem[]) => {
+              const tracks: NativeTrack[] = list.map((row: NativeSearchItem): NativeTrack => {
+                return {
+                  bvid: row.bvid,
+                  title: row.title,
+                  artist: row.author,
+                  coverUrl: row.pic,
+                  duration: this.parseDuration(row.duration),
+                };
+              });
+              let index = tracks.findIndex((row: NativeTrack) => row.bvid === item.bvid);
+              if (index < 0) index = 0;
+              this.playQueueTracks(tracks, index);
             },
           })
         }
@@ -210,31 +260,30 @@ struct Index {
         if (this.nativePlaylistsOpen) {
           NativePlaylistsPage({
             topInset: this.topInset,
-            onPlayTrack: (track: NativeTrack) => {
-              this.currentLocalPath = '';
-              this.currentBvid = track.bvid;
-              this.miniTitle = track.title;
-              this.miniArtist = track.artist;
-              this.miniCover = track.coverUrl;
-              this.miniVisible = true;
-              this.miniOpen = true;
+            onPlayTrack: (track: NativeTrack, list: NativeTrack[]) => {
+              let index = list.findIndex((row: NativeTrack) => row.bvid === track.bvid);
+              if (index < 0) index = 0;
+              this.playQueueTracks(list, index);
             },
           })
         }
         if (this.nativeDownloadsOpen) {
           NativeDownloadsPage({
             topInset: this.topInset,
-            onPlayDownload: (item: NativeDownload) => {
-              this.currentBvid = '';
-              this.currentLocalPath = item.path;
-              this.localTitle = item.title;
-              this.localArtist = item.artist;
-              this.localCover = item.coverUrl;
-              this.miniTitle = item.title;
-              this.miniArtist = item.artist;
-              this.miniCover = item.coverUrl;
-              this.miniVisible = true;
-              this.miniOpen = true;
+            onPlayDownload: (item: NativeDownload, list: NativeDownload[]) => {
+              const tracks: NativeTrack[] = list.map((row: NativeDownload): NativeTrack => {
+                return {
+                  bvid: row.bvid,
+                  title: row.title,
+                  artist: row.artist,
+                  coverUrl: row.coverUrl,
+                  duration: 0,
+                  localPath: row.path,
+                };
+              });
+              let index = tracks.findIndex((row: NativeTrack) => row.localPath === item.path);
+              if (index < 0) index = 0;
+              this.playQueueTracks(tracks, index);
             },
           })
         }
@@ -251,6 +300,18 @@ struct Index {
             onClose: () => {
               this.miniOpen = false;
             },
+            onNext: () => {
+              this.nextTrack(true);
+            },
+            onPrev: () => {
+              this.previousTrack();
+            },
+            onQueue: () => {
+              this.queueOpen = true;
+            },
+            onEnded: () => {
+              this.nextTrack(false);
+            },
             onState: (state: NativePlayerState) => {
               this.miniTitle = state.title || this.miniTitle;
               this.miniArtist = state.artist || this.miniArtist;
@@ -258,6 +319,18 @@ struct Index {
               this.miniPlaying = state.playing;
               this.miniTime = state.time;
               this.miniDuration = state.duration;
+            },
+          })
+        }
+        if (this.queueOpen) {
+          NativeQueuePage({
+            queue: this.queue,
+            topInset: this.topInset,
+            onSelect: (index: number) => {
+              this.playQueueIndex(index);
+            },
+            onClose: () => {
+              this.queueOpen = false;
             },
           })
         }

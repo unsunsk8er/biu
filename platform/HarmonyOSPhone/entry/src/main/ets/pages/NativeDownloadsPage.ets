@@ -4,7 +4,7 @@ import { NativeDownload, NativeLibrary } from '../common/NativeLibrary'
 @Component
 export struct NativeDownloadsPage {
   topInset: number = 0
-  onPlayDownload: (download: NativeDownload) => void = () => {}
+  onPlayDownload: (download: NativeDownload, queue: NativeDownload[]) => void = () => {}
 
   @State private downloads: NativeDownload[] = []
   @StorageLink('biu-theme') private theme: string = 'light'
@@ -74,7 +74,7 @@ export struct NativeDownloadsPage {
     .padding(12)
     .backgroundColor(this.cardBg())
     .borderRadius(14)
-    .onClick(() => this.onPlayDownload(item))
+    .onClick(() => this.onPlayDownload(item, this.downloads))
   }
 
   build() {

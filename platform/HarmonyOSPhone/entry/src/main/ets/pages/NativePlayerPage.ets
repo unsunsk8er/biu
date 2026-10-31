@@ -32,6 +32,10 @@ export struct NativePlayerPage {
   topInset: number = 0
   onClose: () => void = () => {}
   onState: (state: NativePlayerState) => void = () => {}
+  onNext: () => void = () => {}
+  onPrev: () => void = () => {}
+  onQueue: () => void = () => {}
+  onEnded: () => void = () => {}
 
   @State private title: string = ''
   @State private artist: string = ''
@@ -126,6 +130,7 @@ export struct NativePlayerPage {
         if (Number(payload.duration || 0) > 0) this.duration = Number(payload.duration)
       } else if (type === 'ended') {
         this.playing = false
+        this.onEnded()
       } else if (type === 'error') {
         this.loading = false
         this.playing = false
@@ -387,18 +392,46 @@ export struct NativePlayerPage {
         }
         .width('100%')
 
-        Button() {
-          Text(this.playing ? '暂停' : '播放')
-            .fontSize(16)
-            .fontWeight(FontWeight.Medium)
-            .fontColor('#FFFFFF')
+        Row({ space: 14 }) {
+          Button('上一首')
+            .height(38)
+            .fontSize(12)
+            .fontColor(this.mutedColor())
+            .backgroundColor(this.theme === 'dark' ? '#1C1C1E' : '#FFFFFF')
+            .borderRadius(19)
+            .stateEffect(false)
+            .onClick(() => this.onPrev())
+          Button() {
+            Text(this.playing ? '暂停' : '播放')
+              .fontSize(16)
+              .fontWeight(FontWeight.Medium)
+              .fontColor('#FFFFFF')
+          }
+          .width(84)
+          .height(84)
+          .borderRadius(42)
+          .backgroundColor('#FF5C93')
+          .stateEffect(false)
+          .onClick(() => this.toggle())
+          Button('下一首')
+            .height(38)
+            .fontSize(12)
+            .fontColor(this.mutedColor())
+            .backgroundColor(this.theme === 'dark' ? '#1C1C1E' : '#FFFFFF')
+            .borderRadius(19)
+            .stateEffect(false)
+            .onClick(() => this.onNext())
+          Button('队列')
+            .height(38)
+            .fontSize(12)
+            .fontColor('#FF5C93')
+            .backgroundColor(this.theme === 'dark' ? '#1C1C1E' : '#FFFFFF')
+            .borderRadius(19)
+            .stateEffect(false)
+            .onClick(() => this.onQueue())
         }
-        .width(84)
-        .height(84)
-        .borderRadius(42)
-        .backgroundColor('#FF5C93')
-        .stateEffect(false)
-        .onClick(() => this.toggle())
+        .width('100%')
+        .justifyContent(FlexAlign.Center)
       }
       .layoutWeight(1)
       .width('100%')

@@ -7,6 +7,7 @@ export interface NativeTrack {
   artist: string
   coverUrl: string
   duration: number
+  localPath?: string
 }
 
 export interface NativePlaylist {

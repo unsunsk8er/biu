@@ -4,7 +4,7 @@ import { NativeLibrary, NativePlaylist, NativeTrack } from '../common/NativeLibr
 @Component
 export struct NativePlaylistsPage {
   topInset: number = 0
-  onPlayTrack: (track: NativeTrack) => void = () => {}
+  onPlayTrack: (track: NativeTrack, queue: NativeTrack[]) => void = () => {}
 
   @State private playlists: NativePlaylist[] = []
   @State private selectedId: string = ''
@@ -84,7 +84,7 @@ export struct NativePlaylistsPage {
     .padding(10)
     .backgroundColor(this.cardBg())
     .borderRadius(12)
-    .onClick(() => this.onPlayTrack(track))
+    .onClick(() => this.onPlayTrack(track, this.selected()?.tracks || []))
   }
 
   @Builder

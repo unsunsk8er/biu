@@ -4,7 +4,7 @@ import { NativeBiliApi, NativeSearchItem } from '../common/NativeBiliApi'
 @Component
 export struct NativeSearchPage {
   topInset: number = 0
-  onSelect: (item: NativeSearchItem) => void = () => {}
+  onSelect: (item: NativeSearchItem, queue: NativeSearchItem[]) => void = () => {}
 
   @State private keyword: string = ''
   @State private loading: boolean = false
@@ -54,7 +54,7 @@ export struct NativeSearchPage {
 
   private play(item: NativeSearchItem): void {
     this.getUIContext().getFocusController().clearFocus()
-    this.onSelect(item)
+    this.onSelect(item, this.items)
   }
 
   @Builder
