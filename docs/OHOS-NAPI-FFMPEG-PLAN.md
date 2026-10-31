@@ -31,6 +31,26 @@ AVPlayer 播放 faststart 文件仍会立即暂停，说明问题不只是 `moov
 
 下一步需要真正的转码/解封装（ffmpeg 或 OHOS AVCodec 重封装），而不是只做容器重排。
 
+## 关键发现
+
+- `module.json5` 缺少 `backgroundModes: ["audioPlayback"]` 时：
+  - `startBackgroundRunning` 不生效
+  - 系统日志 `hasBackgroundTask: 0`
+  - 音频一进后台就被暂停
+- `javaScriptProxy` 配置 `permission` 会导致当前 HAP 中 `BiuHarmony` 整体不注入；
+  移除 `permission` 后代理恢复（`Object.keys` = 11）。
+- 持久化后台任务需要 `backgroundModes`，与权限 `KEEP_BACKGROUND_RUNNING` 同时存在。
+
+## 仍待解决
+
+即使后台任务已显示 `hasBackgroundTask: 1`，原生 AVPlayer 在 Home 后仍会在一段时间后暂停。
+下一步需要检查：
+
+- 原生播放器是否绑定 AVSession / 音频焦点
+- `OH_AVPlayer_SetAudioInterruptMode`
+- 暂停是否来自 ArkWeb/JS 的 pause 指令
+- 连续任务与 AVPlayer 的会话生命周期
+
 ## 后续 ffmpeg 接入点
 
 1. 获取/交叉编译 OHOS arm64 ffmpeg 静态库

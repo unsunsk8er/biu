@@ -143,12 +143,10 @@ export class BiuBridge {
   private bindNativePlayer(player: media.AVPlayer, requestId: string): void {
     player.on('stateChange', async (state: string) => {
       if (player !== this.nativePlayer) return;
-      console.error(`[biu-native] state ${state}`);
       if (state === 'initialized') {
         try {
           await player.prepare();
         } catch (error) {
-          console.error(`[biu-native] prepare failed ${JSON.stringify(error)}`);
           this.emitNativeEvent('error', { message: JSON.stringify(error) });
         }
       } else if (state === 'prepared') {
@@ -179,7 +177,6 @@ export class BiuBridge {
     });
     player.on('error', (error: Error) => {
       if (player !== this.nativePlayer) return;
-      console.error(`[biu-native] player error ${JSON.stringify(error)}`);
       this.emitNativeEvent('error', { message: JSON.stringify(error) });
     });
     this.nativeRequestId = requestId;

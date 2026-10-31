@@ -92,8 +92,7 @@ struct Index {
           methodList: ['getVersion', 'getPlatform', 'openExternal', 'exitApp', 'request',
             'setMediaSession', 'setMediaSessionLyric', 'setMediaSessionState', 'clearMediaSession', 'setBackMode',
             'cacheAudioFile'],
-          controller: this.controller,
-          permission: RESOURCE_PERMISSION
+          controller: this.controller
         })
         .onPageEnd(() => {
           this.bridge.setController(this.controller);
