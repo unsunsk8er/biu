@@ -17,6 +17,7 @@ import type { TrackSource } from '@/services/bilibiliApi'
 import { extractAudioProgressive } from '@/services/bilibiliApi'
 import { buildAudioCandidateUrls } from '@/services/playbackFallback'
 import { cacheHarmonyAudio } from '@/services/harmonyAudio'
+import { createNativeAudioElement } from '@/services/nativeAudioElement'
 
 // The ArkWeb native takeover is kept for future work, but AVPlayer currently
 // rejects the transcoded local MP4 on this device. Disable it so Harmony falls
@@ -260,9 +261,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setLoadingAudio(false)
   }, [])
 
-  // 初始化 audio 元素
+  // 初始化 audio 元素；鸿蒙用原生 AVPlayer 包装器替代 HTMLAudioElement
   useEffect(() => {
-    const audio = new Audio()
+    const nativeAudio = HARMONY_NATIVE_AUDIO_ENABLED && isHarmonyApp()
+      ? createNativeAudioElement()
+      : null
+    const audio = nativeAudio || new Audio()
     audio.preload = 'auto'
     audio.volume = volume / 100
     audioRef.current = audio

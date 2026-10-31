@@ -1,11 +1,14 @@
 # HarmonyOS 原生音频播放（AVPlayer + AVTranscoder）
 
-> **当前状态（2026-10-31）**：本机验证表明 AVPlayer 无法解析 B 站 DASH m4s，
-> ArkWeb 仍会对 HTML `<audio>` 执行 `AOC::Pause`。原生接管会导致播放失败，
-> 因此运行时代码通过 `HARMONY_NATIVE_AUDIO_ENABLED = false` 关闭该路径，
-> 回到远端流播放以保证可用性；后台播放能力暂不可用。要真正恢复后台，需要
-> 改为 JS 直控原生播放器，并确保使用 AVPlayer 可解析的 progressive 源，
-> 不能再依赖 ArkWeb 原生媒体接管。
+> **当前状态（2026-10-31）**：已尝试两条原生路径，均失败：
+> 1. ArkWeb 原生媒体接管 + 本地 MP4：AVPlayer `prepare` 被取消/释放；
+> 2. JS 直控 AVPlayer + `MediaSource`：B 站音轨仍是 DASH m4s，AVPlayer 只能播放
+>    极短片段就进入 `completed`，progressive MP4 在多数音乐稿件中不可用。
+>
+> 因此运行时代码通过 `HARMONY_NATIVE_AUDIO_ENABLED = false` 关闭原生路径，
+> 回到远端流播放以保证可用性；后台播放能力暂不可用。要真正解决，需要引入
+> 能解析/转封装 fMP4 的原生解码器（例如 ffmpeg）或换用不依赖 ArkWeb 的
+> 完整原生播放服务。
 
 ## 问题
 

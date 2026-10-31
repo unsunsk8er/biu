@@ -6,6 +6,12 @@ import { image } from '@kit.ImageKit';
 import { fileIo } from '@kit.CoreFileKit';
 import { media } from '@kit.MediaKit';
 
+interface NativeAudioPayload {
+  time?: number;
+  duration?: number;
+  message?: string;
+}
+
 /**
  * ArkWeb enforces CORS for renderer fetches. All api/passport requests are
  * proxied through @ohos.net.http; cookies are read from / written back to the
@@ -21,6 +27,10 @@ export class BiuBridge {
   private lyricText: string = '';
   private currentLyric: string = '';
   private allowSystemBack: boolean = false;
+  private nativePlayer?: media.AVPlayer;
+  private nativeRequestId: string = '';
+  private nativeVolume: number = 1;
+  private nativePrepared: boolean = false;
 
   constructor(context: common.UIAbilityContext) {
     this.context = context;
@@ -55,6 +65,111 @@ export class BiuBridge {
 
   shouldUseSystemBack(): boolean {
     return this.allowSystemBack;
+  }
+
+  /**
+   * Direct native audio playback. The WebView only sends commands and renders
+   * state; AVPlayer owns the network stream, so backgrounding the ability no
+   * longer pauses the HTML media pipeline.
+   */
+  playNativeAudio(requestId: string, url: string): void {
+    void this.startNativeAudio(requestId, url);
+  }
+
+  pauseNativeAudio(): void {
+    this.nativePlayer?.pause();
+  }
+
+  resumeNativeAudio(): void {
+    const player = this.nativePlayer;
+    if (player && this.nativePrepared) player.play();
+  }
+
+  seekNativeAudio(positionSec: number): void {
+    const player = this.nativePlayer;
+    if (!player || !this.nativePrepared) return;
+    player.seek(Math.max(0, positionSec) * 1000);
+  }
+
+  setNativeVolume(volume: number): void {
+    this.nativeVolume = Math.max(0, Math.min(1, volume));
+    if (this.nativePrepared) this.nativePlayer?.setVolume(this.nativeVolume);
+  }
+
+  stopNativeAudio(): void {
+    this.nativePrepared = false;
+    const player = this.nativePlayer;
+    this.nativePlayer = undefined;
+    if (player) player.release().catch(() => {});
+    this.emitNativeEvent('stopped', {});
+  }
+
+  private async startNativeAudio(requestId: string, url: string): Promise<void> {
+    this.stopNativeAudio();
+    try {
+      const player = await media.createAVPlayer();
+      this.nativePlayer = player;
+      this.nativePrepared = false;
+      this.bindNativePlayer(player, requestId);
+      const source = media.createMediaSourceWithUrl(url, {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ' +
+          '(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+        'Referer': 'https://www.bilibili.com/',
+        'Origin': 'https://www.bilibili.com'
+      });
+      await player.setMediaSource(source);
+    } catch (error) {
+      this.emitNativeEvent('error', { message: JSON.stringify(error) });
+    }
+  }
+
+  private bindNativePlayer(player: media.AVPlayer, requestId: string): void {
+    player.on('stateChange', async (state: string) => {
+      if (player !== this.nativePlayer) return;
+      if (state === 'initialized') {
+        try {
+          await player.prepare();
+        } catch (error) {
+          this.emitNativeEvent('error', { message: JSON.stringify(error) });
+        }
+      } else if (state === 'prepared') {
+        this.nativePrepared = true;
+        player.setVolume(this.nativeVolume);
+        player.play();
+        this.emitNativeEvent('duration', { duration: player.duration / 1000 });
+      } else if (state === 'playing') {
+        this.emitNativeEvent('playing', {});
+      } else if (state === 'paused') {
+        this.emitNativeEvent('paused', {});
+      } else if (state === 'completed') {
+        this.emitNativeEvent('ended', {});
+      } else if (state === 'error') {
+        this.emitNativeEvent('error', { message: 'native player error' });
+      }
+    });
+    player.on('timeUpdate', (time: number) => {
+      if (player !== this.nativePlayer) return;
+      this.emitNativeEvent('time', {
+        time: time / 1000,
+        duration: player.duration / 1000
+      });
+    });
+    player.on('durationUpdate', (duration: number) => {
+      if (player !== this.nativePlayer) return;
+      this.emitNativeEvent('duration', { duration: duration / 1000 });
+    });
+    player.on('error', (error: Error) => {
+      if (player !== this.nativePlayer) return;
+      this.emitNativeEvent('error', { message: JSON.stringify(error) });
+    });
+    this.nativeRequestId = requestId;
+  }
+
+  private emitNativeEvent(type: string, payload: NativeAudioPayload): void {
+    if (!this.controller) return;
+    const script =
+      `window.__biuNativeAudio && window.__biuNativeAudio(${JSON.stringify(type)}, ${JSON.stringify(JSON.stringify(payload))})`;
+    this.controller.runJavaScript(script).catch(() => {});
   }
 
   cacheAudioFile(requestId: string, url: string, cacheKey?: string): void {

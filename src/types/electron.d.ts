@@ -128,6 +128,12 @@ export interface BiuHarmonyBridge {
   clearMediaSession: () => void
   setBackMode: (allowSystemBack: boolean) => void
   cacheAudioFile: (requestId: string, url: string, cacheKey?: string) => void
+  playNativeAudio?: (requestId: string, url: string) => void
+  pauseNativeAudio?: () => void
+  resumeNativeAudio?: () => void
+  seekNativeAudio?: (positionSec: number) => void
+  setNativeVolume?: (volume: number) => void
+  stopNativeAudio?: () => void
 }
 
 declare global {
