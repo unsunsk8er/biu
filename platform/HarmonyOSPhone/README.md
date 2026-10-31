@@ -44,7 +44,7 @@ npm run harmony:phone:prepare
 # debug HAP
 npm run harmony:phone:build
 
-# release HAP（debug:false）
+# release HAP（debug:false，但仍是 DevEco debugKey 签名）
 npm run harmony:phone:release
 ```
 
@@ -52,8 +52,8 @@ npm run harmony:phone:release
 
 ```text
 platform/HarmonyOSPhone/entry/build/default/outputs/default/entry-default-signed.hap
-release/biu-2.0.0-harmony-phone.hap          # debug
-release/biu-2.0.0-harmony-phone-release.hap  # release
+release/biu-2.0.0-harmony-phone.hap           # debug
+release/biu-2.0.0-harmony-phone-release.hap   # release 模式 + debug 签名
 ```
 
 ## 签名与 release
@@ -67,6 +67,24 @@ SHA-256: ba435593b7ada397f92c163b739c504d26fad3d409a5c3ddcd1a05c5ff0cf66c
 release/biu-2.0.0-harmony-phone-release.hap
 SHA-256: 34ce37272770f967adb6794fc85721fd40e9f7da6aa3da985667c7f0e754ad91
 ```
+
+> 上面的 release 文件只是 release 构建模式，签名仍是 `debugKey`，不能上传 AppGallery。
+
+## AppGallery release 签名
+
+AGC release 证书/Profile 已生成并完成签名验证。用于邀请测试/内部测试的包：
+
+```text
+release/biu-2.0.0-harmony-phone-appgallery.app
+SHA-256: 32bbd89b1e7b71c483d4d78cd6b71aad580a25d87e63f471ae41093e1da07f9d
+
+release/biu-2.0.0-harmony-phone-appgallery.hap
+SHA-256: 29e63dc415351837bbda057f0c6e349cc07c73220551ee34f90f34cdca1d5ae7
+```
+
+- `.app` 内层 HAP 与外层 APP 均已用 AGC release 证书签名并通过 `hap-sign-tool verify-app`。
+- Profile：`type=release`，`app-distribution-type=app_gallery`，bundle `com.unsunsk8er.biu`。
+- 上传时优先使用 `.app`；如果 AGC 只接受 HAP，再用 `.hap`。
 
 `biu-2.0.0-harmony-phone-release.hap` 是 **release 构建**（`debug:false`），已在 Mate 70 Pro 上验证：
 
