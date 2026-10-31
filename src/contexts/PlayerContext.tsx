@@ -17,7 +17,14 @@ import type { TrackSource } from '@/services/bilibiliApi'
 import { extractAudioProgressive } from '@/services/bilibiliApi'
 import { buildAudioCandidateUrls } from '@/services/playbackFallback'
 import { cacheHarmonyAudio } from '@/services/harmonyAudio'
-import { createNativeAudioElement } from '@/services/nativeAudioElement'
+import {
+  harmonyPlay,
+  harmonyPause,
+  harmonySeek,
+  harmonySetVolume,
+  harmonyStop,
+  setHarmonyPlayerHandler,
+} from '@/services/harmonyPlayer'
 
 // The ArkWeb native takeover is kept for future work, but AVPlayer currently
 // rejects the transcoded local MP4 on this device. Disable it so Harmony falls
@@ -261,12 +268,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setLoadingAudio(false)
   }, [])
 
-  // 初始化 audio 元素；鸿蒙用原生 AVPlayer 包装器替代 HTMLAudioElement
+  // HTML audio 仍作为非鸿蒙平台和兼容回退的占位；鸿蒙原生分支不读取它。
   useEffect(() => {
-    const nativeAudio = HARMONY_NATIVE_AUDIO_ENABLED && isHarmonyApp()
-      ? createNativeAudioElement()
-      : null
-    const audio = nativeAudio || new Audio()
+    const audio = new Audio()
     audio.preload = 'auto'
     audio.volume = volume / 100
     audioRef.current = audio
@@ -485,9 +489,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     playQualityRef.current = settings.playQuality
   }, [settings.playQuality])
 
-  // volume 同步到 audio
+  // volume 同步到 audio / 原生播放器
   useEffect(() => {
-    if (audioRef.current) {
+    if (HARMONY_NATIVE_AUDIO_ENABLED && isHarmonyApp()) {
+      harmonySetVolume(isMuted ? 0 : volume / 100)
+    } else if (audioRef.current) {
       audioRef.current.volume = volume / 100
       audioRef.current.muted = isMuted
     }
@@ -566,6 +572,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   // 当 currentTrack 变化时加载并播放音频
   useEffect(() => {
     if (!currentTrack || !audioRef.current) return
+    // HarmonyOS has its own native playback state machine below; never run
+    // the HTMLAudio loadSource/fallback chain on that platform.
+    if (HARMONY_NATIVE_AUDIO_ENABLED && isHarmonyApp()) return
     // A restored-but-paused track does not need to hit Bilibili/audio CDN at
     // startup. The source is fetched on the first play or track switch.
     if (!shouldAutoplayRef.current) {
@@ -982,6 +991,77 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     }
   }, [currentTrack?.id, currentTrack?.bvid, reloadToken, showToast])
 
+  // HarmonyOS native playback branch. It deliberately does not touch
+  // audioRef/loadSource; native AVPlayer owns the media and its events drive
+  // UI state, so backgrounding cannot trigger the HTML fallback pauses.
+  useEffect(() => {
+    if (!HARMONY_NATIVE_AUDIO_ENABLED || !isHarmonyApp() || !currentTrack) return
+    if (!shouldAutoplayRef.current) {
+      setLoadingAudio(false)
+      return
+    }
+    const track = currentTrack
+    let cancelled = false
+    const startProgress = progressRef.current > 0 ? progressRef.current : 0
+    setLoadingAudio(true)
+    setIsPlaying(true)
+    setHarmonyPlayerHandler(event => {
+      if (cancelled) return
+      if (event.type === 'playing') {
+        setLoadingAudio(false)
+        setIsPlaying(true)
+      } else if (event.type === 'paused') {
+        setLoadingAudio(false)
+        setIsPlaying(false)
+      } else if (event.type === 'time') {
+        setProgress(event.time)
+        if (event.duration > 0) setDuration(event.duration)
+        setLoadingAudio(false)
+      } else if (event.type === 'duration') {
+        if (event.duration > 0) setDuration(event.duration)
+        setLoadingAudio(false)
+      } else if (event.type === 'ended') {
+        setIsPlaying(false)
+        handleTrackEnd()
+      } else if (event.type === 'error') {
+        setLoadingAudio(false)
+        setIsPlaying(false)
+        showToast('音频播放失败，点播放重试')
+      }
+    })
+
+    void (async () => {
+      try {
+        const fallback = track.aid && track.cid ? { aid: track.aid, cid: track.cid } : undefined
+        const source = await extractAudio(track.bvid || track.id, {
+          cid: track.cid,
+          aid: track.aid,
+          title: track.title,
+          artist: track.artist,
+          coverUrl: track.coverUrl,
+          duration: track.duration,
+          fallback,
+          quality: playQualityRef.current,
+        })
+        if (cancelled) return
+        const fileUrl = await cacheHarmonyAudio([source.audioUrl, ...(source.backupUrls || [])], track.id)
+        if (cancelled) return
+        harmonyPlay(fileUrl, startProgress)
+      } catch (error) {
+        if (cancelled) return
+        setLoadingAudio(false)
+        setIsPlaying(false)
+        showToast('音频加载失败，点播放重试')
+      }
+    })()
+
+    return () => {
+      cancelled = true
+      setHarmonyPlayerHandler(null)
+      harmonyStop()
+    }
+  }, [currentTrack?.id, currentTrack?.bvid, reloadToken, showToast, handleTrackEnd])
+
   // ended 事件
   useEffect(() => {
     if (!audioRef.current) return
@@ -1019,6 +1099,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const pause = useCallback(() => {
     shouldAutoplayRef.current = false
     pausedAtRef.current = Date.now()
+    if (HARMONY_NATIVE_AUDIO_ENABLED && isHarmonyApp()) {
+      harmonyPause()
+      setIsPlaying(false)
+      return
+    }
     if (loadingAudioRef.current) cancelLoading()
     audioRef.current?.pause()
     setIsPlaying(false)
@@ -1026,6 +1111,29 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const togglePlay = useCallback(() => {
     if (!currentTrack) return
+
+    if (HARMONY_NATIVE_AUDIO_ENABLED && isHarmonyApp()) {
+      if (loadingAudioRef.current || loadingAudio) {
+        shouldAutoplayRef.current = false
+        cancelLoading()
+        harmonyStop()
+        setLoadingAudio(false)
+        setIsPlaying(false)
+        return
+      }
+      if (isPlaying) {
+        shouldAutoplayRef.current = false
+        pausedAtRef.current = Date.now()
+        harmonyPause()
+        setIsPlaying(false)
+        return
+      }
+      shouldAutoplayRef.current = true
+      setLoadingAudio(true)
+      setIsPlaying(true)
+      setReloadToken(token => token + 1)
+      return
+    }
 
     // The spinner is also a stop/retry affordance. Without this, a stalled
     // loader left the play/pause button unresponsive.
@@ -1175,7 +1283,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, [isShuffled, queue, currentTrack])
 
   const handleSetProgress = useCallback((p: number) => {
-    if (audioRef.current) {
+    if (HARMONY_NATIVE_AUDIO_ENABLED && isHarmonyApp()) {
+      harmonySeek(p)
+    } else if (audioRef.current) {
       audioRef.current.currentTime = p
     }
     setProgress(p)
