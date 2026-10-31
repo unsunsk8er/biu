@@ -4,6 +4,14 @@
 
 ## 已完成
 
+### Phase 6：原生歌单
+
+- `NativeLibrary.ets`：原生 Preferences 歌单/收藏/最近播放存储
+- 首次打开从 Web localStorage 迁移歌单
+- `NativePlaylistsPage.ets`：歌单列表、新建歌单、歌单详情
+- 点击曲目直接进入原生播放页
+- 真机验证：新建歌单 `Test`、列表持久化
+
 ### Phase 5：原生全局播放 + 迷你播放栏
 
 - 原生播放页收起后不停止音频

@@ -237,7 +237,6 @@ export class BiuBridge {
   }
 
   private async downloadAudioFile(requestId: string, url: string, cacheKey: string): Promise<void> {
-    hilog.info(0x0000, 'BiuCache', `start ${requestId} ${url.slice(0, 120)}`);
     const base = this.cacheBaseName(cacheKey);
     const cachedPath = `${this.context.cacheDir}/${base}.mp4`;
     try {

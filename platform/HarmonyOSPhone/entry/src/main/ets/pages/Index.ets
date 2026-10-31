@@ -5,8 +5,10 @@ import display from '@ohos.display';
 import { BiuBridge } from '../common/BiuBridge';
 import { NativeSearchItem } from '../common/NativeBiliApi';
 import { NativePlayerPage, NativePlayerState } from './NativePlayerPage';
+import { NativePlaylistsPage } from './NativePlaylistsPage';
 import { NativeSearchPage } from './NativeSearchPage';
 import { NativeSettingsPage } from './NativeSettingsPage';
+import { NativeTrack } from '../common/NativeLibrary';
 
 const RESOURCE_METHODS: string[] = [
   'getVersion',
@@ -37,6 +39,7 @@ struct Index {
   @State private topInset: number = 0;
   @State private activeTab: string = '/search';
   @State private nativeSearchOpen: boolean = false;
+  @State private nativePlaylistsOpen: boolean = false;
   @State private miniVisible: boolean = false;
   @State private miniOpen: boolean = false;
   @State private currentBvid: string = '';
@@ -107,11 +110,19 @@ struct Index {
       if (path === '/search') {
         this.activeTab = path;
         this.nativeSearchOpen = true;
+        this.nativePlaylistsOpen = false;
+        return;
+      }
+      if (path === '/playlists') {
+        this.activeTab = path;
+        this.nativeSearchOpen = false;
+        this.nativePlaylistsOpen = true;
         return;
       }
       if (this.activeTab === path) return;
       this.activeTab = path;
       this.nativeSearchOpen = false;
+      this.nativePlaylistsOpen = false;
       // Settings is a fully native page. Keep the WebView alive underneath so
       // playback UI and audio state are not destroyed.
       if (path === '/settings') return;
@@ -192,6 +203,10 @@ struct Index {
       this.nativeSearchOpen = false;
       return true;
     }
+    if (this.nativePlaylistsOpen) {
+      this.nativePlaylistsOpen = false;
+      return true;
+    }
     // The native settings page is a top-level ArkUI layer; back returns to the
     // previously active Web tab instead of exiting the app.
     if (this.activeTab === '/settings') {
@@ -216,7 +231,7 @@ struct Index {
         Web({ src: $rawfile('www/index.html'), controller: this.controller })
           .width('100%')
           .height('100%')
-          .opacity(this.activeTab === '/settings' || this.nativeSearchOpen ? 0 : 1)
+          .opacity(this.activeTab === '/settings' || this.nativeSearchOpen || this.nativePlaylistsOpen ? 0 : 1)
           .javaScriptAccess(true)
           .domStorageAccess(true)
           .fileAccess(true)
@@ -258,6 +273,20 @@ struct Index {
         }
         if (this.activeTab === '/settings') {
           NativeSettingsPage({ controller: this.controller, topInset: this.topInset })
+        }
+        if (this.nativePlaylistsOpen) {
+          NativePlaylistsPage({
+            controller: this.controller,
+            topInset: this.topInset,
+            onPlayTrack: (track: NativeTrack) => {
+              this.currentBvid = track.bvid;
+              this.miniTitle = track.title;
+              this.miniArtist = track.artist;
+              this.miniCover = track.coverUrl;
+              this.miniVisible = true;
+              this.miniOpen = true;
+            },
+          })
         }
         if (this.miniVisible) {
           NativePlayerPage({
