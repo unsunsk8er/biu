@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import {
   ChevronDown, Play, Pause, SkipBack, SkipForward, Shuffle, Repeat,
-  Heart, Volume2, VolumeX, Search, Music, Loader2, Maximize2, Minimize2, X, ExternalLink, RefreshCw, Image as ImageIcon, Captions, Download, ListMusic,
+  Heart, Volume2, VolumeX, Music, Loader2, Maximize2, Minimize2, X, ExternalLink, RefreshCw, Image as ImageIcon, Captions, Download, ListMusic,
 } from 'lucide-react'
 import { usePlayer, usePlayerProgress } from '@/contexts/PlayerContext'
 import { useNowPlaying } from '@/contexts/NowPlayingContext'
@@ -14,9 +14,8 @@ import CoverArtwork from '@/components/CoverArtwork'
 import SlowMarquee from '@/components/SlowMarquee'
 import PlayQueue from '@/components/PlayQueue'
 import LyricsView from '@/components/LyricsView'
-import type { LyricCandidate } from '@/services/lyrics'
 import { isMobileApp, isMobilePhone } from '@/utils/mobile'
-import { MOTION_BASE, EASE_OUT, springSnappy } from '@/utils/motion'
+import { MOTION_BASE, EASE_OUT } from '@/utils/motion'
 
 const sliderTheme = {
   ['--track-bg']: 'var(--np-track-bg, rgba(255,255,255,0.22))',
@@ -24,7 +23,6 @@ const sliderTheme = {
   ['--track-thumb']: 'var(--plasma-accent)',
 } as React.CSSProperties
 
-const spring = springSnappy
 const noDrag = { WebkitAppRegion: 'no-drag' } as React.CSSProperties
 const AUTO_NOW_PLAYING_IDLE_MS = 30_000
 
@@ -213,7 +211,7 @@ function NowPlayingView() {
 
   const lyricsContent = track ? (
     settings.showLyrics ? (
-      <LyricsPanelWithProgress lyrics={lyrics} track={track} />
+      <LyricsPanelWithProgress lyrics={lyrics} />
     ) : (
       <Centered>
         <Music size={42} strokeWidth={1.25} />
@@ -591,50 +589,22 @@ function NowPlayingProgress({ trackDuration }: { trackDuration: number }) {
 
 /** 歌词高亮同样需要 4Hz 的 currentTime，单独订阅，避免整页跟着刷新。 */
 function LyricsPanelWithProgress({
-  lyrics, track,
+  lyrics,
 }: {
   lyrics: ReturnType<typeof useLyrics>
-  track: { title: string; artist: string }
 }) {
   const { progress, setProgress } = usePlayerProgress()
-  return <LyricsPanel lyrics={lyrics} track={track} currentTime={progress} onSeek={setProgress} />
+  return <LyricsPanel lyrics={lyrics} currentTime={progress} onSeek={setProgress} />
 }
 
 function LyricsPanel({
-  lyrics, track, onSeek, currentTime,
+  lyrics, onSeek, currentTime,
 }: {
   lyrics: ReturnType<typeof useLyrics>
-  track: { title: string; artist: string }
   onSeek: (t: number) => void
   currentTime: number
 }) {
-  const { status, result, search, choose, retry } = lyrics
-  const [searchOpen, setSearchOpen] = useState(false)
-  const [query, setQuery] = useState('')
-  const [results, setResults] = useState<LyricCandidate[]>([])
-  const [searching, setSearching] = useState(false)
-  const [choosingId, setChoosingId] = useState<string | null>(null)
-
-  const openSearch = () => {
-    setQuery(`${track.title} ${track.artist}`.trim())
-    setResults([])
-    setSearchOpen(true)
-  }
-
-  const doSearch = async () => {
-    if (!query.trim()) return
-    setSearching(true)
-    const r = await search(query)
-    setResults(r)
-    setSearching(false)
-  }
-
-  const pick = async (record: LyricCandidate) => {
-    setChoosingId(record.id)
-    await choose(record)
-    setChoosingId(null)
-    setSearchOpen(false)
-  }
+  const { status, result, retry } = lyrics
 
   return (
     <div className="lyrics-panel">
@@ -650,7 +620,7 @@ function LyricsPanel({
             <Music size={42} strokeWidth={1.25} />
             <strong>暂无歌词</strong>
             <span>这首歌在歌词库里还没有匹配到</span>
-            <button type="button" onClick={openSearch}><Search size={14} /> 手动搜索歌词</button>
+            <button type="button" onClick={() => { retry() }}><RefreshCw size={14} /> 重新匹配歌词</button>
           </Centered>
         )}
         {(status === 'ok' || status === 'unsynced') && result && (
@@ -661,50 +631,7 @@ function LyricsPanel({
         )}
       </div>
 
-      <AnimatePresence>
-        {searchOpen && (
-          <motion.div
-            className="lyrics-drawer"
-            initial={{ opacity: 0, y: 18, scale: 0.985 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 18, scale: 0.985 }}
-            transition={spring}
-          >
-            <div className="lyrics-drawer__head">
-              <span>手动匹配歌词</span>
-              <button type="button" onClick={() => setSearchOpen(false)}><X size={18} /></button>
-            </div>
-            <div className="lyrics-drawer__search">
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') doSearch() }}
-                placeholder="歌名 歌手"
-                autoFocus
-              />
-              <button type="button" onClick={doSearch} disabled={searching}>
-                {searching ? <Loader2 size={15} className="spin" /> : <Search size={15} />}
-                搜索
-              </button>
-            </div>
-            <div className="lyrics-drawer__list">
-              {results.length === 0 && !searching && <div className="lyrics-drawer__empty">输入歌名或歌手后搜索</div>}
-              {results.map((r) => (
-                <button key={r.id} type="button" className="lyrics-candidate" onClick={() => pick(r)} disabled={choosingId === r.id}>
-                  <span>
-                    <strong>{r.trackName}</strong>
-                    <small>{r.artistName} · {r.albumName || 'QQ Music'} · {formatTime(r.duration)}</small>
-                  </span>
-                  {choosingId === r.id ? <Loader2 size={16} className="spin" /> : <span>选择</span>}
-                </button>
-              ))}
-            </div>
-            <button type="button" className="lyrics-drawer__retry" onClick={() => { retry(); setSearchOpen(false) }}>
-              重新自动匹配
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
+
     </div>
   )
 }

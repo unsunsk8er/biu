@@ -2,11 +2,8 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import type { Track } from '@/types'
 import {
   getLyricForTrackShared,
-  searchLyricCandidates,
-  chooseLyricCandidate,
   clearLyricCache,
   type LyricResult,
-  type LyricCandidate,
 } from '@/services/lyrics'
 
 export type LyricStatus = 'idle' | 'loading' | 'ok' | 'unsynced' | 'empty'
@@ -42,26 +39,11 @@ export function useLyrics(track: Track | null, enabled: boolean) {
     load(track)
   }, [enabled, track?.id])
 
-  const search = useCallback((q: string): Promise<LyricCandidate[]> => searchLyricCandidates(q), [])
-
-  const choose = useCallback(async (record: LyricCandidate) => {
-    if (!track) return
-    setStatus('loading')
-    const res = await chooseLyricCandidate(track.id, record)
-    if (!res) {
-      setStatus('empty')
-      setResult(null)
-      return
-    }
-    setResult(res)
-    setStatus(res.synced ? 'ok' : 'unsynced')
-  }, [track])
-
   const retry = useCallback(() => {
     if (!track) return
     clearLyricCache(track.id)
     load(track)
   }, [track, load])
 
-  return { status, result, search, choose, retry }
+  return { status, result, retry }
 }

@@ -2,7 +2,7 @@
  * 歌词服务（渲染层）
  *
  * 数据源：OIAPI QQ Music Lyric。主进程负责跨域请求，本层负责：
- * B站视频标题清洗 → 关键词候选 → QQ音乐候选评分 → LRC 解析 → 缓存 → 手动纠正。
+ * B站视频标题清洗 → 关键词候选 → QQ音乐候选评分 → LRC 解析 → 缓存。
  */
 
 import type { Track } from '@/types'
@@ -359,17 +359,4 @@ const lyricRequests = createInFlight<LyricResult | null>()
  */
 export function getLyricForTrackShared(track: Track): Promise<LyricResult | null> {
   return lyricRequests.run(track.id, () => getLyricForTrack(track))
-}
-
-export async function searchLyricCandidates(query: string): Promise<LyricCandidate[]> {
-  const q = cleanTitle(query.trim())
-  if (!q) return []
-  return oiSearch(q, 20)
-}
-
-export async function chooseLyricCandidate(trackId: string, record: LyricCandidate): Promise<LyricResult | null> {
-  const content = await oiGetLyric(record.songId)
-  const result = lyricToResult(record, content)
-  if (result) cacheOk(trackId, result)
-  return result
 }
