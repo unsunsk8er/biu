@@ -20,6 +20,16 @@ export interface NativePlaylist {
   updatedAt: string
 }
 
+export interface NativeDownload {
+  bvid: string
+  title: string
+  artist: string
+  coverUrl: string
+  path: string
+  cachedAt: number
+  size: number
+}
+
 interface WebTrack {
   id?: string
   bvid?: string
@@ -49,6 +59,7 @@ const PREF_NAME = 'biu_native_library'
 const KEY_PLAYLISTS = 'playlists'
 const KEY_FAVORITES = 'favorites'
 const KEY_RECENT = 'recent'
+const KEY_DOWNLOADS = 'downloads'
 const KEY_MIGRATED = 'migrated_v1'
 
 export class NativeLibrary {
@@ -178,5 +189,25 @@ export class NativeLibrary {
 
   deletePlaylist(id: string): void {
     this.write(KEY_PLAYLISTS, JSON.stringify(this.getPlaylists().filter((item) => item.id !== id)))
+  }
+
+  getDownloads(): NativeDownload[] {
+    try {
+      const parsed = JSON.parse(this.read(KEY_DOWNLOADS) || '[]') as NativeDownload[]
+      return Array.isArray(parsed) ? parsed.sort((a, b) => b.cachedAt - a.cachedAt) : []
+    } catch (error) {
+      return []
+    }
+  }
+
+  addDownload(download: NativeDownload): void {
+    if (!download.path || !download.bvid) return
+    const next = this.getDownloads().filter((item) => item.bvid !== download.bvid && item.path !== download.path)
+    next.unshift(download)
+    this.write(KEY_DOWNLOADS, JSON.stringify(next.slice(0, 200)))
+  }
+
+  removeDownload(bvid: string): void {
+    this.write(KEY_DOWNLOADS, JSON.stringify(this.getDownloads().filter((item) => item.bvid !== bvid)))
   }
 }

@@ -2,6 +2,7 @@ import { common } from '@kit.AbilityKit'
 import { BiuBridge, NativeAudioPayload } from '../common/BiuBridge'
 import { NativeBiliApi } from '../common/NativeBiliApi'
 import { NativeLyricsApi, LyricLine } from '../common/NativeLyricsApi'
+import { NativeLibrary } from '../common/NativeLibrary'
 
 export interface NativePlayerState {
   title: string
@@ -23,6 +24,10 @@ function formatTime(seconds: number): string {
 export struct NativePlayerPage {
   bridge: BiuBridge = new BiuBridge(getContext(this) as common.UIAbilityContext)
   @Prop @Watch('onBvidChange') bvid: string = ''
+  @Prop @Watch('onLocalChange') localPath: string = ''
+  @Prop localTitle: string = ''
+  @Prop localArtist: string = ''
+  @Prop localCover: string = ''
   @Prop visible: boolean = true
   topInset: number = 0
   onClose: () => void = () => {}
@@ -41,11 +46,31 @@ export struct NativePlayerPage {
   @State private showLyrics: boolean = false
   @StorageLink('biu-theme') private theme: string = 'light'
   private scroller: Scroller = new Scroller()
+  private library: NativeLibrary = new NativeLibrary(getContext(this) as common.UIAbilityContext)
   private requestId: string = ''
   private playable: boolean = false
 
   onBvidChange(): void {
-    if (!this.bvid) return
+    if (this.localPath || !this.bvid) return
+    this.resetForLoad()
+    void this.load()
+  }
+
+  onLocalChange(): void {
+    if (!this.localPath) return
+    this.resetForLoad()
+    // Prop updates for localTitle/localArtist may land in the same frame as
+    // localPath; read them on the next tick so the header is not blank.
+    window.setTimeout(() => {
+      this.title = this.localTitle
+      this.artist = this.localArtist
+      this.cover = this.localCover
+      this.notify()
+      void this.loadLocal()
+    }, 0)
+  }
+
+  private resetForLoad(): void {
     this.bridge.cacheAudioFile(`switch-${Date.now()}`, 'native-audio://stop')
     this.title = ''
     this.artist = ''
@@ -57,7 +82,6 @@ export struct NativePlayerPage {
     this.playable = false
     this.loading = true
     this.error = ''
-    void this.load()
   }
 
   aboutToAppear(): void {
@@ -70,6 +94,17 @@ export struct NativePlayerPage {
         return
       }
       this.playable = true
+      if (this.bvid && this.title) {
+        this.library.addDownload({
+          bvid: this.bvid,
+          title: this.title,
+          artist: this.artist,
+          coverUrl: this.cover,
+          path,
+          cachedAt: Date.now(),
+          size: 0,
+        })
+      }
       this.bridge.cacheAudioFile(
         `player-play-${Date.now()}`,
         `native-audio://play?value=${encodeURIComponent(path)}`
@@ -98,7 +133,27 @@ export struct NativePlayerPage {
       }
       this.notify()
     })
-    if (this.bvid) void this.load()
+    if (this.localPath) {
+      void this.loadLocal()
+    } else if (this.bvid) {
+      void this.load()
+    }
+  }
+
+  private async loadLocal(): Promise<void> {
+    if (!this.localPath) return
+    try {
+      this.requestId = `native-local-${Date.now()}`
+      this.loading = true
+      this.bridge.cacheAudioFile(
+        `local-play-${Date.now()}`,
+        `native-audio://play?value=${encodeURIComponent(this.localPath)}`
+      )
+    } catch (error) {
+      this.loading = false
+      this.error = '本地播放失败'
+      this.notify()
+    }
   }
 
   private notify(): void {

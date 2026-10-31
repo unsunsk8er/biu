@@ -4,6 +4,15 @@
 
 ## 已完成
 
+### Phase 7：原生下载与离线播放
+
+- `NativeLibrary` 增加下载元数据
+- 原生播放完成缓存后自动登记下载
+- `NativeDownloadsPage.ets`：缓存列表、删除记录、离线播放
+- 原生播放页支持 `file://` 本地音频
+- 四个一级 Tab 均已使用原生页面，WebView 只作为底层兜底
+- 真机验证：播放`青花瓷`后下载页出现缓存，点击可离线播放
+
 ### Phase 6：原生歌单
 
 - `NativeLibrary.ets`：原生 Preferences 歌单/收藏/最近播放存储

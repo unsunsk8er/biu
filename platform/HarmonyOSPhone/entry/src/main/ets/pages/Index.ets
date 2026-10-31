@@ -6,9 +6,10 @@ import { BiuBridge } from '../common/BiuBridge';
 import { NativeSearchItem } from '../common/NativeBiliApi';
 import { NativePlayerPage, NativePlayerState } from './NativePlayerPage';
 import { NativePlaylistsPage } from './NativePlaylistsPage';
+import { NativeDownloadsPage } from './NativeDownloadsPage';
 import { NativeSearchPage } from './NativeSearchPage';
 import { NativeSettingsPage } from './NativeSettingsPage';
-import { NativeTrack } from '../common/NativeLibrary';
+import { NativeDownload, NativeTrack } from '../common/NativeLibrary';
 
 const RESOURCE_METHODS: string[] = [
   'getVersion',
@@ -40,9 +41,14 @@ struct Index {
   @State private activeTab: string = '/search';
   @State private nativeSearchOpen: boolean = false;
   @State private nativePlaylistsOpen: boolean = false;
+  @State private nativeDownloadsOpen: boolean = false;
   @State private miniVisible: boolean = false;
   @State private miniOpen: boolean = false;
   @State private currentBvid: string = '';
+  @State private currentLocalPath: string = '';
+  @State private localTitle: string = '';
+  @State private localArtist: string = '';
+  @State private localCover: string = '';
   @State private miniTitle: string = '';
   @State private miniArtist: string = '';
   @State private miniCover: string = '';
@@ -111,23 +117,29 @@ struct Index {
         this.activeTab = path;
         this.nativeSearchOpen = true;
         this.nativePlaylistsOpen = false;
+        this.nativeDownloadsOpen = false;
         return;
       }
       if (path === '/playlists') {
         this.activeTab = path;
         this.nativeSearchOpen = false;
         this.nativePlaylistsOpen = true;
+        this.nativeDownloadsOpen = false;
+        return;
+      }
+      if (path === '/downloads') {
+        this.activeTab = path;
+        this.nativeSearchOpen = false;
+        this.nativePlaylistsOpen = false;
+        this.nativeDownloadsOpen = true;
         return;
       }
       if (this.activeTab === path) return;
       this.activeTab = path;
       this.nativeSearchOpen = false;
       this.nativePlaylistsOpen = false;
-      // Settings is a fully native page. Keep the WebView alive underneath so
-      // playback UI and audio state are not destroyed.
-      if (path === '/settings') return;
-      // Other tabs still use the WebView fallback until their native rewrite.
-      this.controller.loadUrl(`resource://rawfile/www/index.html#${path}`);
+      this.nativeDownloadsOpen = false;
+      // Settings is fully native as well; no WebView route change is needed.
     })
   }
 
@@ -207,6 +219,10 @@ struct Index {
       this.nativePlaylistsOpen = false;
       return true;
     }
+    if (this.nativeDownloadsOpen) {
+      this.nativeDownloadsOpen = false;
+      return true;
+    }
     // The native settings page is a top-level ArkUI layer; back returns to the
     // previously active Web tab instead of exiting the app.
     if (this.activeTab === '/settings') {
@@ -231,7 +247,7 @@ struct Index {
         Web({ src: $rawfile('www/index.html'), controller: this.controller })
           .width('100%')
           .height('100%')
-          .opacity(this.activeTab === '/settings' || this.nativeSearchOpen || this.nativePlaylistsOpen ? 0 : 1)
+          .opacity(this.activeTab === '/settings' || this.nativeSearchOpen || this.nativePlaylistsOpen || this.nativeDownloadsOpen ? 0 : 1)
           .javaScriptAccess(true)
           .domStorageAccess(true)
           .fileAccess(true)
@@ -262,6 +278,7 @@ struct Index {
           NativeSearchPage({
             topInset: this.topInset,
             onSelect: (item: NativeSearchItem) => {
+              this.currentLocalPath = '';
               this.currentBvid = item.bvid;
               this.miniTitle = item.title;
               this.miniArtist = item.author;
@@ -279,6 +296,7 @@ struct Index {
             controller: this.controller,
             topInset: this.topInset,
             onPlayTrack: (track: NativeTrack) => {
+              this.currentLocalPath = '';
               this.currentBvid = track.bvid;
               this.miniTitle = track.title;
               this.miniArtist = track.artist;
@@ -288,10 +306,31 @@ struct Index {
             },
           })
         }
+        if (this.nativeDownloadsOpen) {
+          NativeDownloadsPage({
+            topInset: this.topInset,
+            onPlayDownload: (item: NativeDownload) => {
+              this.currentBvid = '';
+              this.currentLocalPath = item.path;
+              this.localTitle = item.title;
+              this.localArtist = item.artist;
+              this.localCover = item.coverUrl;
+              this.miniTitle = item.title;
+              this.miniArtist = item.artist;
+              this.miniCover = item.coverUrl;
+              this.miniVisible = true;
+              this.miniOpen = true;
+            },
+          })
+        }
         if (this.miniVisible) {
           NativePlayerPage({
             bridge: this.bridge,
             bvid: this.currentBvid,
+            localPath: this.currentLocalPath,
+            localTitle: this.localTitle,
+            localArtist: this.localArtist,
+            localCover: this.localCover,
             visible: this.miniOpen,
             topInset: this.topInset,
             onClose: () => {
