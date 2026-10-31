@@ -1,6 +1,7 @@
 import { common } from '@kit.AbilityKit'
 import { BiuBridge, NativeAudioPayload } from '../common/BiuBridge'
 import { NativeBiliApi, NativeSearchItem } from '../common/NativeBiliApi'
+import { NativeLyricsApi, LyricLine } from '../common/NativeLyricsApi'
 
 function formatTime(seconds: number): string {
   const total = Math.max(0, Math.floor(seconds))
@@ -32,7 +33,11 @@ export struct NativePlayerPage {
   @State private time: number = 0
   @State private duration: number = 0
   @State private error: string = ''
+  @State private lyrics: LyricLine[] = []
+  @State private lyricIndex: number = -1
+  @State private showLyrics: boolean = false
   @StorageLink('biu-theme') private theme: string = 'light'
+  private scroller: Scroller = new Scroller()
   private requestId: string = ''
   private playable: boolean = false
 
@@ -63,6 +68,7 @@ export struct NativePlayerPage {
       } else if (type === 'time') {
         this.time = Number(payload.time || 0)
         if (Number(payload.duration || 0) > 0) this.duration = Number(payload.duration)
+        this.updateLyric(this.time)
         this.loading = false
       } else if (type === 'duration') {
         if (Number(payload.duration || 0) > 0) this.duration = Number(payload.duration)
@@ -102,9 +108,34 @@ export struct NativePlayerPage {
         source.url,
         `${info.bvid}_${info.cid}`
       )
+      void this.loadLyrics(info.title, info.artist, info.duration)
     } catch (error) {
       this.loading = false
       this.error = '加载失败，请检查网络'
+    }
+  }
+
+  private async loadLyrics(title: string, artist: string, duration: number): Promise<void> {
+    try {
+      const api = new NativeLyricsApi()
+      const result = await api.find(title, artist, duration)
+      if (result) this.lyrics = result.lines
+    } catch (error) {
+      // Lyrics are optional; playback continues without them.
+    }
+  }
+
+  private updateLyric(time: number): void {
+    if (!this.lyrics.length) return
+    let next = 0
+    for (let index = 0; index < this.lyrics.length; index += 1) {
+      if (this.lyrics[index].time <= time + 0.15) next = index
+      else break
+    }
+    if (next === this.lyricIndex) return
+    this.lyricIndex = next
+    if (this.showLyrics) {
+      this.scroller.scrollToIndex(next, true, ScrollAlign.CENTER)
     }
   }
 
@@ -162,20 +193,59 @@ export struct NativePlayerPage {
           .fontSize(13)
           .fontColor(this.mutedColor())
         Blank()
-        Text(' ')
+        Button(this.showLyrics ? '封面' : '歌词')
+          .height(34)
           .fontSize(13)
-          .width(60)
+          .fontColor('#FF5C93')
+          .backgroundColor(this.theme === 'dark' ? '#1C1C1E' : '#FFFFFF')
+          .borderRadius(17)
+          .stateEffect(false)
+          .onClick(() => {
+            this.showLyrics = !this.showLyrics
+            if (this.showLyrics && this.lyricIndex >= 0) {
+              this.scroller.scrollToIndex(this.lyricIndex, true, ScrollAlign.CENTER)
+            }
+          })
       }
       .width('100%')
 
       Column({ space: 18 }) {
-        Image(this.cover)
-          .width(280)
-          .height(280)
-          .borderRadius(24)
-          .objectFit(ImageFit.Cover)
-          .backgroundColor(this.theme === 'dark' ? '#1C1C1E' : '#E8E8ED')
-          .margin({ top: 26 })
+        if (this.showLyrics) {
+          if (this.lyrics.length) {
+            List({ scroller: this.scroller, space: 8 }) {
+              ForEach(this.lyrics, (line: LyricLine, index: number) => {
+                ListItem() {
+                  Text(line.text)
+                    .fontSize(index === this.lyricIndex ? 18 : 14)
+                    .fontWeight(index === this.lyricIndex ? FontWeight.Medium : FontWeight.Normal)
+                    .fontColor(index === this.lyricIndex ? '#FF5C93' : this.mutedColor())
+                    .textAlign(TextAlign.Center)
+                    .width('100%')
+                    .padding({ top: 4, bottom: 4 })
+                }
+                .onClick(() => this.seek(line.time))
+              }, (line: LyricLine, index: number) => `${index}-${line.time}`)
+            }
+            .height(300)
+            .width('100%')
+            .scrollBar(BarState.Off)
+            .margin({ top: 20 })
+          } else {
+            Text('暂无歌词')
+              .fontSize(14)
+              .fontColor(this.mutedColor())
+              .height(300)
+              .margin({ top: 20 })
+          }
+        } else {
+          Image(this.cover)
+            .width(280)
+            .height(280)
+            .borderRadius(24)
+            .objectFit(ImageFit.Cover)
+            .backgroundColor(this.theme === 'dark' ? '#1C1C1E' : '#E8E8ED')
+            .margin({ top: 26 })
+        }
 
         Column({ space: 6 }) {
           Text(this.title)

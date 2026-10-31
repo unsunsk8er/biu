@@ -4,6 +4,14 @@
 
 ## 已完成
 
+### Phase 4：原生歌词
+
+- `NativeLyricsApi.ets`
+- OIAPI 搜索、候选打分、LRC 解析
+- 原生播放页歌词视图、当前行高亮、自动滚动
+- 点击歌词行 seek
+- 真机验证：`青花瓷` 歌词正确显示并随播放高亮
+
 ### Phase 3：原生播放主链路
 
 - `NativeBiliApi.getVideoInfo()` 获取标题、封面、分P、CID
