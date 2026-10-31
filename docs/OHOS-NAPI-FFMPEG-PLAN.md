@@ -51,7 +51,16 @@ AVPlayer 播放 faststart 文件仍会立即暂停，说明问题不只是 `moov
 - 暂停是否来自 ArkWeb/JS 的 pause 指令
 - 连续任务与 AVPlayer 的会话生命周期
 
-## 最新定位
+## 最终状态（已完成）
+
+- AVMuxer 重封装 AAC 轨为 M4A 成功
+- `PlayerContext` 鸿蒙分支改为独立原生状态机
+- `backgroundModes: ["audioPlayback"]` 已注册
+- 代理 `permission` 已移除，`BiuHarmony` 正常注入
+- 真机验证：Home 后 `HpaeSinkInputNode` 保持 `RUNNING`，
+  `hasBackgroundTask: 1`，无 `AOC::Pause`
+
+## 历史定位
 
 真机日志确认：后台任务已成功注册（`hasBackgroundTask: 1`），但暂停来自 JS 侧
 `NativeAudioElement.pause()`，调用栈落在 `PlayerContext` 的 `loadSource` 清理/失败路径，

@@ -5,7 +5,7 @@ import { avSession } from '@kit.AVSessionKit';
 import { image } from '@kit.ImageKit';
 import { fileIo } from '@kit.CoreFileKit';
 import { media } from '@kit.MediaKit';
-import { remuxFastStart } from 'libnative_audio.so';
+import { remuxFastStart, remuxToM4a } from 'libnative_audio.so';
 
 interface NativeAudioPayload {
   time?: number;
@@ -370,8 +370,18 @@ export class BiuBridge {
       });
       await transcoder.start();
       await completed;
-      // AVPlayer frequently rejects MP4 files whose moov atom is after mdat.
-      // The native module reorders moov first and fixes stco/co64 offsets.
+      // Preferred: remux the AAC track into a clean M4A with OHOS AVSource /
+      // AVDemuxer / AVMuxer. This removes the fragmented m4s container that
+      // AVPlayer keeps rejecting.
+      const m4aPath = targetPath.replace(/\.mp4$/, '.m4a');
+      try {
+        if (remuxToM4a(targetPath, m4aPath)) {
+          return m4aPath;
+        }
+      } catch (error) {
+        // Fall through to faststart MP4.
+      }
+      // Fallback: AVPlayer frequently rejects MP4 files whose moov atom is after mdat.
       const fastStartPath = targetPath.replace(/\.mp4$/, '.fast.mp4');
       try {
         if (remuxFastStart(targetPath, fastStartPath)) {

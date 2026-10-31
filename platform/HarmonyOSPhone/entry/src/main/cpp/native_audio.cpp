@@ -1,9 +1,20 @@
 #include <cstdint>
+#include <cstring>
+#include <fcntl.h>
 #include <fstream>
 #include <string>
+#include <sys/stat.h>
+#include <unistd.h>
 #include <vector>
 
 #include "napi/native_api.h"
+#include "multimedia/player_framework/native_avbuffer.h"
+#include "multimedia/player_framework/native_avbuffer_info.h"
+#include "multimedia/player_framework/native_avcodec_base.h"
+#include "multimedia/player_framework/native_avdemuxer.h"
+#include "multimedia/player_framework/native_avformat.h"
+#include "multimedia/player_framework/native_avmuxer.h"
+#include "multimedia/player_framework/native_avsource.h"
 
 namespace {
 
@@ -60,6 +71,101 @@ bool parseTopBoxes(const std::vector<uint8_t>& data, std::vector<TopBox>& boxes)
     offset += static_cast<size_t>(size);
   }
   return true;
+}
+
+// Remux the AAC track of a fragmented MP4 into a standard M4A container using
+// the OHOS media demuxer/muxer C APIs. AVPlayer rejects the original m4s and
+// the AVTranscoder MP4 output on this device; a clean M4A track is accepted.
+bool remuxToM4a(const std::string& inputPath, const std::string& outputPath) {
+  const int inputFd = open(inputPath.c_str(), O_RDONLY);
+  if (inputFd < 0) return false;
+  struct stat inputStat {};
+  if (fstat(inputFd, &inputStat) != 0 || inputStat.st_size <= 0) {
+    close(inputFd);
+    return false;
+  }
+
+  OH_AVSource* source = OH_AVSource_CreateWithFD(inputFd, 0, inputStat.st_size);
+  if (!source) {
+    close(inputFd);
+    return false;
+  }
+  OH_AVFormat* sourceFormat = OH_AVSource_GetSourceFormat(source);
+  int32_t trackCount = 0;
+  if (!sourceFormat || !OH_AVFormat_GetIntValue(sourceFormat, OH_MD_KEY_TRACK_COUNT, &trackCount) ||
+      trackCount <= 0) {
+    if (sourceFormat) OH_AVFormat_Destroy(sourceFormat);
+    OH_AVSource_Destroy(source);
+    close(inputFd);
+    return false;
+  }
+  OH_AVFormat_Destroy(sourceFormat);
+
+  int32_t audioTrack = -1;
+  OH_AVFormat* audioFormat = nullptr;
+  for (int32_t i = 0; i < trackCount; i++) {
+    OH_AVFormat* format = OH_AVSource_GetTrackFormat(source, static_cast<uint32_t>(i));
+    if (!format) continue;
+    const char* mime = nullptr;
+    OH_AVFormat_GetStringValue(format, OH_MD_KEY_CODEC_MIME, &mime);
+    if (mime && std::strncmp(mime, "audio/", 6) == 0) {
+      audioTrack = i;
+      audioFormat = format;
+      break;
+    }
+    OH_AVFormat_Destroy(format);
+  }
+  if (audioTrack < 0 || !audioFormat) {
+    OH_AVSource_Destroy(source);
+    close(inputFd);
+    return false;
+  }
+
+  const int outputFd = open(outputPath.c_str(), O_CREAT | O_RDWR | O_TRUNC, 0600);
+  if (outputFd < 0) {
+    OH_AVFormat_Destroy(audioFormat);
+    OH_AVSource_Destroy(source);
+    close(inputFd);
+    return false;
+  }
+  OH_AVMuxer* muxer = OH_AVMuxer_Create(outputFd, AV_OUTPUT_FORMAT_M4A);
+  if (!muxer) {
+    close(outputFd);
+    OH_AVFormat_Destroy(audioFormat);
+    OH_AVSource_Destroy(source);
+    close(inputFd);
+    return false;
+  }
+
+  int32_t outputTrack = -1;
+  bool ok = OH_AVMuxer_AddTrack(muxer, &outputTrack, audioFormat) == AV_ERR_OK;
+  OH_AVFormat_Destroy(audioFormat);
+  OH_AVDemuxer* demuxer = ok ? OH_AVDemuxer_CreateWithSource(source) : nullptr;
+  ok = ok && demuxer && OH_AVDemuxer_SelectTrackByID(demuxer, static_cast<uint32_t>(audioTrack)) == AV_ERR_OK &&
+       OH_AVMuxer_Start(muxer) == AV_ERR_OK;
+
+  OH_AVBuffer* sample = ok ? OH_AVBuffer_Create(1024 * 1024) : nullptr;
+  ok = ok && sample;
+  for (int frames = 0; ok && frames < 2000000; frames++) {
+    OH_AVErrCode readResult = OH_AVDemuxer_ReadSampleBuffer(demuxer, static_cast<uint32_t>(audioTrack), sample);
+    if (readResult != AV_ERR_OK) break;
+    OH_AVCodecBufferAttr attr {};
+    if (OH_AVBuffer_GetBufferAttr(sample, &attr) != AV_ERR_OK) break;
+    if ((attr.flags & AVCODEC_BUFFER_FLAGS_EOS) != 0) break;
+    if (attr.size <= 0) continue;
+    if (OH_AVMuxer_WriteSampleBuffer(muxer, static_cast<uint32_t>(outputTrack), sample) != AV_ERR_OK) {
+      ok = false;
+    }
+  }
+
+  if (sample) OH_AVBuffer_Destroy(sample);
+  if (ok) OH_AVMuxer_Stop(muxer);
+  OH_AVMuxer_Destroy(muxer);
+  if (demuxer) OH_AVDemuxer_Destroy(demuxer);
+  OH_AVSource_Destroy(source);
+  close(outputFd);
+  close(inputFd);
+  return ok;
 }
 
 // AVPlayer is sensitive to the moov atom being after mdat. Move moov before
@@ -170,6 +276,29 @@ napi_value RemuxFastStart(napi_env env, napi_callback_info info) {
   return result;
 }
 
+napi_value RemuxToM4a(napi_env env, napi_callback_info info) {
+  size_t argc = 2;
+  napi_value args[2] = {nullptr};
+  napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
+  napi_value result;
+  if (argc < 2) {
+    napi_get_boolean(env, false, &result);
+    return result;
+  }
+  size_t inputLength = 0;
+  size_t outputLength = 0;
+  napi_get_value_string_utf8(env, args[0], nullptr, 0, &inputLength);
+  napi_get_value_string_utf8(env, args[1], nullptr, 0, &outputLength);
+  std::string inputPath(inputLength + 1, '\0');
+  std::string outputPath(outputLength + 1, '\0');
+  napi_get_value_string_utf8(env, args[0], inputPath.data(), inputLength + 1, &inputLength);
+  napi_get_value_string_utf8(env, args[1], outputPath.data(), outputLength + 1, &outputLength);
+  inputPath.resize(inputLength);
+  outputPath.resize(outputLength);
+  napi_get_boolean(env, remuxToM4a(inputPath, outputPath), &result);
+  return result;
+}
+
 napi_value GetVersion(napi_env env, napi_callback_info info) {
   napi_value result;
   napi_create_string_utf8(env, "native-audio-1", NAPI_AUTO_LENGTH, &result);
@@ -182,6 +311,7 @@ EXTERN_C_START
 static napi_value Init(napi_env env, napi_value exports) {
   napi_property_descriptor desc[] = {
     {"remuxFastStart", nullptr, RemuxFastStart, nullptr, nullptr, nullptr, napi_default, nullptr},
+    {"remuxToM4a", nullptr, RemuxToM4a, nullptr, nullptr, nullptr, napi_default, nullptr},
     {"version", nullptr, GetVersion, nullptr, nullptr, nullptr, napi_default, nullptr},
   };
   napi_define_properties(env, exports, sizeof(desc) / sizeof(desc[0]), desc);

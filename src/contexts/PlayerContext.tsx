@@ -29,7 +29,7 @@ import {
 // The ArkWeb native takeover is kept for future work, but AVPlayer currently
 // rejects the transcoded local MP4 on this device. Disable it so Harmony falls
 // back to the regular streaming path instead of getting stuck on a spinner.
-const HARMONY_NATIVE_AUDIO_ENABLED = false
+const HARMONY_NATIVE_AUDIO_ENABLED = true
 const HARMONY_NATIVE_CACHE_ENABLED = false
 
 interface PlayerState {
