@@ -3,6 +3,7 @@ import { common } from '@kit.AbilityKit';
 import { window } from '@kit.ArkUI';
 import display from '@ohos.display';
 import { BiuBridge } from '../common/BiuBridge';
+import { NativeSettingsPage } from './NativeSettingsPage';
 
 const RESOURCE_METHODS: string[] = [
   'getVersion',
@@ -30,7 +31,9 @@ struct Index {
   private bridge: BiuBridge = new BiuBridge(getContext(this) as common.UIAbilityContext);
   @State private showNativeTabs: boolean = true;
   @State private bottomInset: number = 0;
+  @State private topInset: number = 0;
   @State private activeTab: string = '/search';
+  @StorageLink('biu-theme') private nativeTheme: string = 'light';
 
   aboutToAppear(): void {
     this.bridge.setController(this.controller);
@@ -57,6 +60,7 @@ struct Index {
       const indicatorArea = mainWindow.getWindowAvoidArea(window.AvoidAreaType.TYPE_NAVIGATION_INDICATOR);
       const top = Math.max(systemArea.topRect.height, 0) / density;
       const bottom = Math.max(systemArea.bottomRect.height, indicatorArea.bottomRect.height, 0) / density;
+      this.topInset = top;
       this.bottomInset = bottom;
       const script =
         `document.documentElement.style.setProperty('--biu-inset-top','${top}px');` +
@@ -78,7 +82,7 @@ struct Index {
       Text(label)
         .fontSize(11)
         .fontWeight(this.activeTab === path ? FontWeight.Medium : FontWeight.Normal)
-        .fontColor(this.activeTab === path ? '#FF5C93' : '#8A8A8E')
+        .fontColor(this.activeTab === path ? '#FF5C93' : (this.nativeTheme === 'dark' ? '#C7C7CC' : '#8A8A8E'))
     }
     .layoutWeight(1)
     .height(56)
@@ -86,10 +90,12 @@ struct Index {
     .backgroundColor(Color.Transparent)
     .stateEffect(false)
     .onClick(() => {
+      if (this.activeTab === path) return;
       this.activeTab = path;
-      // HashRouter's history listener is not receiving native route calls on
-      // this device. Reloading the rawfile entry with the target hash is the
-      // only deterministic way to switch pages from ArkUI.
+      // Settings is the first fully native page. Keep the WebView alive
+      // underneath so playback UI and audio state are not destroyed.
+      if (path === '/settings') return;
+      // Other tabs still use the WebView fallback until their native rewrite.
       this.controller.loadUrl(`resource://rawfile/www/index.html#${path}`);
     })
   }
@@ -106,10 +112,17 @@ struct Index {
     .height(56 + this.bottomInset)
     .padding({ bottom: this.bottomInset })
     .alignItems(VerticalAlign.Top)
-    .backgroundColor('#F7F8FA')
+    .backgroundColor(this.nativeTheme === 'dark' ? '#1C1C1E' : '#F7F8FA')
   }
 
   onBackPress(): boolean {
+    // The native settings page is a top-level ArkUI layer; back returns to the
+    // previously active Web tab instead of exiting the app.
+    if (this.activeTab === '/settings') {
+      this.activeTab = '/search';
+      this.controller.loadUrl('resource://rawfile/www/index.html#/search');
+      return true;
+    }
     // Root tabs return false so the system side-back gesture goes to the
     // launcher; overlays/subpages keep the gesture and resolve in React.
     if (this.bridge.shouldUseSystemBack()) {
@@ -123,34 +136,43 @@ struct Index {
 
   build() {
     Column() {
-      Web({ src: $rawfile('www/index.html'), controller: this.controller })
-        .layoutWeight(1)
-        .javaScriptAccess(true)
-        .domStorageAccess(true)
-        .fileAccess(true)
-        .imageAccess(true)
-        .onlineImageAccess(true)
-        .mixedMode(MixedMode.All)
-        .zoomAccess(false)
-        .horizontalScrollBarAccess(false)
-        .verticalScrollBarAccess(false)
-        .userAgent('Mozilla/5.0 (Linux; Android 15; BiuHarmony 2.0.0) AppleWebKit/537.36 ' +
-          '(KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36')
-        .javaScriptProxy({
-          object: this.bridge,
-          name: 'BiuHarmony',
-          methodList: ['getVersion', 'getPlatform', 'openExternal', 'exitApp', 'request',
-            'setMediaSession', 'setMediaSessionLyric', 'setMediaSessionState', 'clearMediaSession', 'setBackMode',
-            'cacheAudioFile'],
-          controller: this.controller
-        })
-        .onPageEnd(() => {
-          this.bridge.setController(this.controller);
-          this.injectInsets();
-          this.controller.runJavaScript(
-            "document.documentElement.dataset.biuNativeTabs='true';"
-          ).catch(() => {});
-        })
+      Stack() {
+        Web({ src: $rawfile('www/index.html'), controller: this.controller })
+          .width('100%')
+          .height('100%')
+          .opacity(this.activeTab === '/settings' ? 0 : 1)
+          .javaScriptAccess(true)
+          .domStorageAccess(true)
+          .fileAccess(true)
+          .imageAccess(true)
+          .onlineImageAccess(true)
+          .mixedMode(MixedMode.All)
+          .zoomAccess(false)
+          .horizontalScrollBarAccess(false)
+          .verticalScrollBarAccess(false)
+          .userAgent('Mozilla/5.0 (Linux; Android 15; BiuHarmony 2.0.0) AppleWebKit/537.36 ' +
+            '(KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36')
+          .javaScriptProxy({
+            object: this.bridge,
+            name: 'BiuHarmony',
+            methodList: ['getVersion', 'getPlatform', 'openExternal', 'exitApp', 'request',
+              'setMediaSession', 'setMediaSessionLyric', 'setMediaSessionState', 'clearMediaSession', 'setBackMode',
+              'cacheAudioFile'],
+            controller: this.controller
+          })
+          .onPageEnd(() => {
+            this.bridge.setController(this.controller);
+            this.injectInsets();
+            this.controller.runJavaScript(
+              "document.documentElement.dataset.biuNativeTabs='true';"
+            ).catch(() => {});
+          })
+        if (this.activeTab === '/settings') {
+          NativeSettingsPage({ controller: this.controller, topInset: this.topInset })
+        }
+      }
+      .width('100%')
+      .layoutWeight(1)
       if (this.showNativeTabs) {
         this.NativeTabsBar()
       }
