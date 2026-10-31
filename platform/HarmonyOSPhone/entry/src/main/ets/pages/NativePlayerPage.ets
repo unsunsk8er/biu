@@ -3,6 +3,7 @@ import { BiuBridge, NativeAudioPayload } from '../common/BiuBridge'
 import { NativeBiliApi } from '../common/NativeBiliApi'
 import { NativeLyricsApi, LyricLine } from '../common/NativeLyricsApi'
 import { NativeLibrary } from '../common/NativeLibrary'
+import { NativeCoverApi } from '../common/NativeCoverApi'
 
 export interface NativePlayerState {
   title: string
@@ -48,6 +49,7 @@ export struct NativePlayerPage {
   @State private lyrics: LyricLine[] = []
   @State private lyricIndex: number = -1
   @State private showLyrics: boolean = false
+  @State private favorite: boolean = false
   @StorageLink('biu-theme') private theme: string = 'light'
   private scroller: Scroller = new Scroller()
   private library: NativeLibrary = new NativeLibrary(getContext(this) as common.UIAbilityContext)
@@ -191,6 +193,14 @@ export struct NativePlayerPage {
       this.artist = info.artist
       this.cover = info.cover
       if (info.duration > 0) this.duration = info.duration
+      this.favorite = this.library.isFavorite(info.bvid)
+      this.library.addRecent({
+        bvid: info.bvid,
+        title: info.title,
+        artist: info.artist,
+        coverUrl: info.cover,
+        duration: info.duration,
+      })
       this.bridge.setMediaSession(info.bvid, info.title, info.artist, '', info.cover, '', info.duration)
       this.notify()
       const source = await api.getPlayUrl(info.bvid, info.cid)
@@ -201,6 +211,7 @@ export struct NativePlayerPage {
         `${info.bvid}_${info.cid}`
       )
       void this.loadLyrics(info.title, info.artist, info.duration)
+      void this.loadCover(info.title, info.artist)
     } catch (error) {
       this.loading = false
       this.error = '加载失败，请检查网络'
@@ -215,6 +226,18 @@ export struct NativePlayerPage {
       if (result) this.lyrics = result.lines
     } catch (error) {
       // Lyrics are optional; playback continues without them.
+    }
+  }
+
+  private async loadCover(title: string, artist: string): Promise<void> {
+    try {
+      const cover = await new NativeCoverApi().find(title, artist)
+      if (cover) {
+        this.cover = cover
+        this.notify()
+      }
+    } catch (error) {
+      // Keep the Bilibili cover when no catalogue match is available.
     }
   }
 
@@ -253,6 +276,17 @@ export struct NativePlayerPage {
     )
   }
 
+  private toggleFavorite(): void {
+    if (!this.bvid) return
+    this.favorite = this.library.toggleFavorite({
+      bvid: this.bvid,
+      title: this.title,
+      artist: this.artist,
+      coverUrl: this.cover,
+      duration: this.duration,
+    })
+  }
+
   private close(): void {
     // Keep the native player alive so the mini player can keep controlling it.
     this.onClose()
@@ -281,6 +315,15 @@ export struct NativePlayerPage {
           .borderRadius(17)
           .stateEffect(false)
           .onClick(() => this.close())
+        Button(this.favorite ? '已收藏' : '收藏')
+          .height(34)
+          .fontSize(12)
+          .fontColor(this.favorite ? '#FF5C93' : this.mutedColor())
+          .backgroundColor(this.theme === 'dark' ? '#1C1C1E' : '#FFFFFF')
+          .borderRadius(17)
+          .stateEffect(false)
+          .margin({ left: 8 })
+          .onClick(() => this.toggleFavorite())
         Blank()
         Text('正在播放')
           .fontSize(13)

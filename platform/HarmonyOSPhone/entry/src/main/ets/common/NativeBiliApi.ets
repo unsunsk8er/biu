@@ -169,6 +169,18 @@ export class NativeBiliApi {
     return this.pref
   }
 
+  saveCookie(cookie: string): void {
+    if (!cookie) return
+    try {
+      const pref = this.getPref()
+      if (!pref) return
+      pref.putSync('cookies', cookie)
+      pref.flush()
+    } catch (error) {
+      // Login persistence failure is reported by the caller.
+    }
+  }
+
   private readCookie(): string {
     const pref = this.getPref()
     if (pref) {

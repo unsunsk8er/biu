@@ -8,6 +8,7 @@ export struct NativePlaylistsPage {
 
   @State private playlists: NativePlaylist[] = []
   @State private selectedId: string = ''
+  @State private mode: string = 'playlists'
   @State private creating: boolean = false
   @State private draftName: string = ''
   @State private loading: boolean = true
@@ -57,7 +58,23 @@ export struct NativePlaylistsPage {
   }
 
   @Builder
-  TrackRow(track: NativeTrack) {
+  ModeButton(label: string, mode: string) {
+    Button(label)
+      .height(32)
+      .layoutWeight(1)
+      .fontSize(12)
+      .fontColor(this.mode === mode ? '#FFFFFF' : this.mutedColor())
+      .backgroundColor(this.mode === mode ? '#FF5C93' : this.cardBg())
+      .borderRadius(16)
+      .stateEffect(false)
+      .onClick(() => {
+        this.mode = mode
+        this.selectedId = ''
+      })
+  }
+
+  @Builder
+  TrackRow(track: NativeTrack, queue: NativeTrack[]) {
     Row({ space: 12 }) {
       Image(track.coverUrl)
         .width(48)
@@ -84,7 +101,7 @@ export struct NativePlaylistsPage {
     .padding(10)
     .backgroundColor(this.cardBg())
     .borderRadius(12)
-    .onClick(() => this.onPlayTrack(track, this.selected()?.tracks || []))
+    .onClick(() => this.onPlayTrack(track, queue))
   }
 
   @Builder
@@ -155,6 +172,15 @@ export struct NativePlaylistsPage {
       .width('100%')
 
       if (!this.selectedId) {
+        Row({ space: 8 }) {
+          this.ModeButton('歌单', 'playlists')
+          this.ModeButton('收藏', 'favorites')
+          this.ModeButton('最近', 'recent')
+        }
+        .width('100%')
+      }
+
+      if (this.mode === 'playlists' && !this.selectedId) {
         Text('本地歌单会同步导入；播放列表保存在原生 Preferences')
           .fontSize(11)
           .fontColor(this.mutedColor())
@@ -201,11 +227,31 @@ export struct NativePlaylistsPage {
           .layoutWeight(1)
           .scrollBar(BarState.Off)
         }
+      } else if (this.mode === 'favorites') {
+        List({ space: 8 }) {
+          ForEach(this.library.getFavorites(), (track: NativeTrack) => {
+            ListItem() {
+              this.TrackRow(track, this.library.getFavorites())
+            }
+          }, (track: NativeTrack) => track.bvid)
+        }
+        .layoutWeight(1)
+        .scrollBar(BarState.Off)
+      } else if (this.mode === 'recent') {
+        List({ space: 8 }) {
+          ForEach(this.library.getRecent(), (track: NativeTrack) => {
+            ListItem() {
+              this.TrackRow(track, this.library.getRecent())
+            }
+          }, (track: NativeTrack) => track.bvid + track.title)
+        }
+        .layoutWeight(1)
+        .scrollBar(BarState.Off)
       } else {
         List({ space: 8 }) {
           ForEach(this.selected()?.tracks || [], (track: NativeTrack) => {
             ListItem() {
-              this.TrackRow(track)
+              this.TrackRow(track, this.selected()?.tracks || [])
             }
           }, (track: NativeTrack) => track.bvid)
         }

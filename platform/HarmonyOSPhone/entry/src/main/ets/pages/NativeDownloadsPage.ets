@@ -11,6 +11,7 @@ export struct NativeDownloadsPage {
   private library: NativeLibrary = new NativeLibrary(getContext(this) as common.UIAbilityContext)
 
   aboutToAppear(): void {
+    this.library.migrateCacheFiles()
     this.downloads = this.library.getDownloads()
   }
 

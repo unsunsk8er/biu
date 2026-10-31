@@ -6,6 +6,7 @@ import { NativeSearchItem } from '../common/NativeBiliApi';
 import { NativeDownload, NativeTrack } from '../common/NativeLibrary';
 import { NativeQueue } from '../common/NativeQueue';
 import { NativeDownloadsPage } from './NativeDownloadsPage';
+import { NativeLoginPage } from './NativeLoginPage';
 import { NativePlayerPage, NativePlayerState } from './NativePlayerPage';
 import { NativePlaylistsPage } from './NativePlaylistsPage';
 import { NativeQueuePage } from './NativeQueuePage';
@@ -24,6 +25,7 @@ struct Index {
   @State private nativePlaylistsOpen: boolean = false;
   @State private nativeDownloadsOpen: boolean = false;
   @State private queueOpen: boolean = false;
+  @State private loginOpen: boolean = false;
   @State private miniVisible: boolean = false;
   @State private miniOpen: boolean = false;
   @State private currentBvid: string = '';
@@ -112,6 +114,7 @@ struct Index {
     .stateEffect(false)
     .onClick(() => {
       if (this.queueOpen) this.queueOpen = false;
+      if (this.loginOpen) this.loginOpen = false;
       if (this.miniOpen) this.miniOpen = false;
       if (path === '/search') {
         this.activeTab = path;
@@ -203,6 +206,10 @@ struct Index {
   }
 
   onBackPress(): boolean {
+    if (this.loginOpen) {
+      this.loginOpen = false;
+      return true;
+    }
     if (this.queueOpen) {
       this.queueOpen = false;
       return true;
@@ -255,7 +262,12 @@ struct Index {
           })
         }
         if (this.activeTab === '/settings') {
-          NativeSettingsPage({ topInset: this.topInset })
+          NativeSettingsPage({
+            topInset: this.topInset,
+            onLogin: () => {
+              this.loginOpen = true;
+            },
+          })
         }
         if (this.nativePlaylistsOpen) {
           NativePlaylistsPage({
@@ -331,6 +343,17 @@ struct Index {
             },
             onClose: () => {
               this.queueOpen = false;
+            },
+          })
+        }
+        if (this.loginOpen) {
+          NativeLoginPage({
+            topInset: this.topInset,
+            onClose: () => {
+              this.loginOpen = false;
+            },
+            onSuccess: () => {
+              this.loginOpen = false;
             },
           })
         }

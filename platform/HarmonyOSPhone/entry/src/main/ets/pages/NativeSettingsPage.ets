@@ -25,6 +25,7 @@ const DEFAULTS: NativeSettings = {
 @Component
 export struct NativeSettingsPage {
   topInset: number = 0
+  onLogin: () => void = () => {}
 
   @State private settings: NativeSettings = DEFAULTS
   private pref?: preferences.Preferences
@@ -165,6 +166,28 @@ export struct NativeSettingsPage {
           .alignItems(HorizontalAlign.Start)
           .width('100%')
           .padding({ left: 4, top: 8, bottom: 4 })
+
+          this.SectionTitle('账号')
+          Row() {
+            Column({ space: 3 }) {
+              Text('B 站账号').fontSize(14).fontColor(this.textColor())
+              Text('扫码登录后可同步收藏夹与获取更高音质').fontSize(11).fontColor(this.mutedColor())
+            }
+            .alignItems(HorizontalAlign.Start)
+            .layoutWeight(1)
+            Button('扫码登录')
+              .height(34)
+              .fontSize(12)
+              .fontColor('#FFFFFF')
+              .backgroundColor('#FF5C93')
+              .borderRadius(17)
+              .stateEffect(false)
+              .onClick(() => this.onLogin())
+          }
+          .width('100%')
+          .padding(14)
+          .backgroundColor(this.cardBg())
+          .borderRadius(16)
 
           this.SectionTitle('外观')
           Column({ space: 12 }) {
