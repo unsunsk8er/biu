@@ -6,25 +6,17 @@ import { NowPlayingProvider } from '@/contexts/NowPlayingContext'
 import { AuthProvider, useAuth } from '@/contexts/AuthContext'
 import { AddToPlaylistProvider } from '@/contexts/AddToPlaylistContext'
 import MainLayout from '@/components/layout/MainLayout'
+import SearchPage from '@/pages/Search'
+import Recent from '@/pages/Recent'
+import Favorites from '@/pages/Favorites'
+import Playlists from '@/pages/Playlists'
+import Downloads from '@/pages/Downloads'
+import Settings from '@/pages/Settings'
 import { isAndroidApp } from '@/utils/mobile'
 import { EASE_OUT, MOTION_BASE } from '@/utils/motion'
 
-const SearchPage = lazy(() => import('@/pages/Search'))
-const Recent = lazy(() => import('@/pages/Recent'))
-const Favorites = lazy(() => import('@/pages/Favorites'))
-const Playlists = lazy(() => import('@/pages/Playlists'))
-const Downloads = lazy(() => import('@/pages/Downloads'))
-const Settings = lazy(() => import('@/pages/Settings'))
 // 登录弹窗依赖二维码库，只在用户点击登录后加载
 const LoginDialog = lazy(() => import('@/components/LoginDialog'))
-
-function PageLoading() {
-  return (
-    <div className="page-loading" role="status" aria-label="页面加载中">
-      <span />
-    </div>
-  )
-}
 
 function GlobalLoginDialog() {
   const { showLogin, setShowLogin, checkLogin } = useAuth()
@@ -52,7 +44,6 @@ export default function App() {
       <PlayerProvider>
         <NowPlayingProvider>
           <AddToPlaylistProvider>
-            <Suspense fallback={<PageLoading />}>
             <Routes>
               <Route element={<MainLayout />}>
                 <Route path="/" element={<Navigate to="/search" replace />} />
@@ -67,7 +58,6 @@ export default function App() {
                 <Route path="*" element={<Navigate to="/search" replace />} />
               </Route>
             </Routes>
-            </Suspense>
             <GlobalLoginDialog />
           </AddToPlaylistProvider>
         </NowPlayingProvider>
