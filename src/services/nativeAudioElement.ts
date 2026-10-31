@@ -38,6 +38,13 @@ class NativeAudioElement extends EventTarget {
     }
   }
 
+  private command(action: string, value = ''): void {
+    const bridge = window.BiuHarmony
+    if (!bridge?.cacheAudioFile) return
+    const id = `native-${Date.now()}-${++this.requestSeq}`
+    bridge.cacheAudioFile(id, `native-audio://${action}?value=${encodeURIComponent(value)}`)
+  }
+
   get src(): string { return this._src }
   set src(value: string) {
     const next = String(value || '')
@@ -46,14 +53,13 @@ class NativeAudioElement extends EventTarget {
     this._duration = 0
     this._error = null
     this._readyState = next ? 1 : 0
-    const bridge = window.BiuHarmony
     if (!next) {
-      bridge?.stopNativeAudio?.()
+      this.command('stop')
       this._paused = true
       return
     }
     this._paused = false
-    bridge?.playNativeAudio?.(`native-${Date.now()}-${++this.requestSeq}`, next)
+    this.command('play', next)
   }
 
   get currentSrc(): string { return this._src }
@@ -61,7 +67,7 @@ class NativeAudioElement extends EventTarget {
   set currentTime(value: number) {
     const next = Math.max(0, Number(value) || 0)
     this._currentTime = next
-    window.BiuHarmony?.seekNativeAudio?.(next)
+    this.command('seek', String(next))
   }
   get duration(): number { return this._duration }
   get paused(): boolean { return this._paused }
@@ -70,25 +76,25 @@ class NativeAudioElement extends EventTarget {
   get volume(): number { return this._volume }
   set volume(value: number) {
     this._volume = Math.max(0, Math.min(1, Number(value) || 0))
-    window.BiuHarmony?.setNativeVolume?.(this._muted ? 0 : this._volume)
+    this.command('volume', String(this._muted ? 0 : this._volume))
   }
   get muted(): boolean { return this._muted }
   set muted(value: boolean) {
     this._muted = Boolean(value)
-    window.BiuHarmony?.setNativeVolume?.(this._muted ? 0 : this._volume)
+    this.command('volume', String(this._muted ? 0 : this._volume))
   }
   playbackRate = 1
 
   play(): Promise<void> {
     this._paused = false
-    window.BiuHarmony?.resumeNativeAudio?.()
+    this.command('resume')
     this.dispatchEvent(new Event('play'))
     return Promise.resolve()
   }
 
   pause(): void {
     this._paused = true
-    window.BiuHarmony?.pauseNativeAudio?.()
+    this.command('pause')
     this.dispatchEvent(new Event('pause'))
   }
 
@@ -102,7 +108,7 @@ class NativeAudioElement extends EventTarget {
     this._currentTime = 0
     this._duration = 0
     this._readyState = 0
-    window.BiuHarmony?.stopNativeAudio?.()
+    this.command('stop')
     this._paused = true
   }
 
@@ -143,6 +149,6 @@ class NativeAudioElement extends EventTarget {
 }
 
 export function createNativeAudioElement(): HTMLAudioElement | null {
-  if (typeof window === 'undefined' || !window.BiuHarmony?.playNativeAudio) return null
+  if (typeof window === 'undefined' || !window.BiuHarmony?.cacheAudioFile) return null
   return new NativeAudioElement() as unknown as HTMLAudioElement
 }

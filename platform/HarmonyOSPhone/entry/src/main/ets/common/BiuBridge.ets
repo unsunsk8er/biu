@@ -29,6 +29,7 @@ export class BiuBridge {
   private currentLyric: string = '';
   private allowSystemBack: boolean = false;
   private nativePlayer?: media.AVPlayer;
+  private nativeFile?: fileIo.File;
   private nativeRequestId: string = '';
   private nativeVolume: number = 1;
   private nativePrepared: boolean = false;
@@ -102,6 +103,14 @@ export class BiuBridge {
     const player = this.nativePlayer;
     this.nativePlayer = undefined;
     if (player) player.release().catch(() => {});
+    if (this.nativeFile) {
+      try {
+        fileIo.closeSync(this.nativeFile);
+      } catch (error) {
+        // ignore close failure
+      }
+      this.nativeFile = undefined;
+    }
     this.emitNativeEvent('stopped', {});
   }
 
@@ -112,14 +121,21 @@ export class BiuBridge {
       this.nativePlayer = player;
       this.nativePrepared = false;
       this.bindNativePlayer(player, requestId);
-      const source = media.createMediaSourceWithUrl(url, {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ' +
-          '(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-        'Referer': 'https://www.bilibili.com/',
-        'Origin': 'https://www.bilibili.com'
-      });
-      await player.setMediaSource(source);
+      if (url.indexOf('file://') === 0) {
+        const path = url.slice('file://'.length);
+        this.nativeFile = fileIo.openSync(path, fileIo.OpenMode.READ_ONLY);
+        player.fdSrc = { fd: this.nativeFile.fd };
+      } else {
+        const source = media.createMediaSourceWithUrl(url, {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ' +
+            '(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+          'Referer': 'https://www.bilibili.com/',
+          'Origin': 'https://www.bilibili.com'
+        });
+        await player.setMediaSource(source);
+      }
     } catch (error) {
+      console.error(`[biu-native] start failed ${JSON.stringify(error)}`);
       this.emitNativeEvent('error', { message: JSON.stringify(error) });
     }
   }
@@ -127,10 +143,12 @@ export class BiuBridge {
   private bindNativePlayer(player: media.AVPlayer, requestId: string): void {
     player.on('stateChange', async (state: string) => {
       if (player !== this.nativePlayer) return;
+      console.error(`[biu-native] state ${state}`);
       if (state === 'initialized') {
         try {
           await player.prepare();
         } catch (error) {
+          console.error(`[biu-native] prepare failed ${JSON.stringify(error)}`);
           this.emitNativeEvent('error', { message: JSON.stringify(error) });
         }
       } else if (state === 'prepared') {
@@ -161,6 +179,7 @@ export class BiuBridge {
     });
     player.on('error', (error: Error) => {
       if (player !== this.nativePlayer) return;
+      console.error(`[biu-native] player error ${JSON.stringify(error)}`);
       this.emitNativeEvent('error', { message: JSON.stringify(error) });
     });
     this.nativeRequestId = requestId;
@@ -173,7 +192,32 @@ export class BiuBridge {
     this.controller.runJavaScript(script).catch(() => {});
   }
 
+  private handleNativeAudioCommand(requestId: string, url: string): void {
+    const rest = url.slice('native-audio://'.length);
+    const marker = rest.indexOf('?');
+    const action = marker >= 0 ? rest.slice(0, marker) : rest;
+    const query = marker >= 0 ? rest.slice(marker + 1) : '';
+    const value = query.indexOf('value=') === 0 ? decodeURIComponent(query.slice('value='.length)) : '';
+    if (action === 'play') {
+      void this.startNativeAudio(requestId, value);
+    } else if (action === 'pause') {
+      this.pauseNativeAudio();
+    } else if (action === 'resume') {
+      this.resumeNativeAudio();
+    } else if (action === 'seek') {
+      this.seekNativeAudio(Number(value) || 0);
+    } else if (action === 'volume') {
+      this.setNativeVolume(Number(value) || 1);
+    } else if (action === 'stop') {
+      this.stopNativeAudio();
+    }
+  }
+
   cacheAudioFile(requestId: string, url: string, cacheKey?: string): void {
+    if (url.indexOf('native-audio://') === 0) {
+      this.handleNativeAudioCommand(requestId, url);
+      return;
+    }
     void this.downloadAudioFile(requestId, url, cacheKey || requestId);
   }
 
