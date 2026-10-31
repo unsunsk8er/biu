@@ -14,6 +14,7 @@
 | `legacy/android/` | Android WebView 工程 |
 | `legacy/electron/` | Electron 主进程 / preload / 桌面 API |
 | `legacy/platform-HarmonyOS/` | 鸿蒙 PC 端工程 |
+| `legacy/web-ui/` | 已移除的 React/Web UI、Vite 构建、WebView 测试 |
 | `legacy/electron-build/` | electron-builder 图标与打包资源 |
 | `legacy/scripts/` | Android / Electron / 鸿蒙 PC 构建与冒烟脚本 |
 | `legacy/workflows/build.yml` | 桌面多平台 CI |

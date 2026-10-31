@@ -1,5 +1,4 @@
 import { common } from '@kit.AbilityKit';
-import { webview } from '@kit.ArkWeb';
 import { http } from '@kit.NetworkKit';
 import { avSession } from '@kit.AVSessionKit';
 import { image } from '@kit.ImageKit';
@@ -15,13 +14,11 @@ export interface NativeAudioPayload {
 }
 
 /**
- * ArkWeb enforces CORS for renderer fetches. All api/passport requests are
- * proxied through @ohos.net.http; cookies are read from / written back to the
- * WebView cookie jar so QR login and favourites survive page reloads.
+ * Native audio bridge: AVPlayer playback, cache/transcode, media session and
+ * background playback. The app no longer uses ArkWeb.
  */
 export class BiuBridge {
   private context: common.UIAbilityContext;
-  private controller?: webview.WebviewController;
   private mediaSession?: avSession.AVSession;
   private mediaMetadata?: avSession.AVMetadata;
   private artworkUrl: string = '';
@@ -29,7 +26,6 @@ export class BiuBridge {
   private lyricText: string = '';
   private currentLyric: string = '';
   private allowSystemBack: boolean = false;
-  private atRootListener?: (atRoot: boolean) => void;
   private audioFileListener?: (requestId: string, path: string) => void;
   private nativeEventListener?: (type: string, payload: NativeAudioPayload) => void;
   private nativePlayer?: media.AVPlayer;
@@ -40,10 +36,6 @@ export class BiuBridge {
 
   constructor(context: common.UIAbilityContext) {
     this.context = context;
-  }
-
-  setController(controller: webview.WebviewController): void {
-    this.controller = controller;
   }
 
   getVersion(): string {
@@ -65,10 +57,6 @@ export class BiuBridge {
     this.context.terminateSelf();
   }
 
-  setAtRootListener(listener: (atRoot: boolean) => void): void {
-    this.atRootListener = listener;
-  }
-
   setAudioFileListener(listener: (requestId: string, path: string) => void): void {
     this.audioFileListener = listener;
   }
@@ -79,7 +67,6 @@ export class BiuBridge {
 
   setBackMode(allowSystemBack: boolean): void {
     this.allowSystemBack = allowSystemBack;
-    if (this.atRootListener) this.atRootListener(allowSystemBack);
   }
 
   shouldUseSystemBack(): boolean {
@@ -87,9 +74,8 @@ export class BiuBridge {
   }
 
   /**
-   * Direct native audio playback. The WebView only sends commands and renders
-   * state; AVPlayer owns the network stream, so backgrounding the ability no
-   * longer pauses the HTML media pipeline.
+   * Direct native audio playback. ArkUI commands and native listeners drive
+   * the AVPlayer behind the native player page.
    */
   playNativeAudio(requestId: string, url: string): void {
     void this.startNativeAudio(requestId, url);
@@ -201,10 +187,6 @@ export class BiuBridge {
 
   private emitNativeEvent(type: string, payload: NativeAudioPayload): void {
     if (this.nativeEventListener) this.nativeEventListener(type, payload);
-    if (!this.controller) return;
-    const script =
-      `window.__biuNativeAudio && window.__biuNativeAudio(${JSON.stringify(type)}, ${JSON.stringify(JSON.stringify(payload))})`;
-    this.controller.runJavaScript(script).catch(() => {});
   }
 
   private handleNativeAudioCommand(requestId: string, url: string): void {
@@ -255,12 +237,6 @@ export class BiuBridge {
       if (url.indexOf('bilibili') >= 0 || url.indexOf('bilivideo') >= 0) {
         headers['Referer'] = 'https://www.bilibili.com/';
         headers['Origin'] = 'https://www.bilibili.com';
-        try {
-          const cookie = webview.WebCookieManager.fetchCookieSync(url);
-          if (cookie) headers['Cookie'] = cookie;
-        } catch (error) {
-          // Cookie jar may not be initialized yet.
-        }
       }
       const response = await new Promise<http.HttpResponse>((resolve, reject) => {
         http.createHttp().request(url, {
@@ -446,10 +422,6 @@ export class BiuBridge {
 
   private emitAudioFile(requestId: string, path: string): void {
     if (this.audioFileListener) this.audioFileListener(requestId, path);
-    if (!this.controller) return;
-    const script =
-      `window.__biuAudioFile && window.__biuAudioFile(${JSON.stringify(requestId)}, ${JSON.stringify(path)})`;
-    this.controller.runJavaScript(script).catch(() => {});
   }
 
   setMediaSession(
@@ -489,6 +461,18 @@ export class BiuBridge {
     }
   }
 
+  private emitCommand(command: string, value?: number): void {
+    if (command === 'play') {
+      this.resumeNativeAudio();
+    } else if (command === 'pause') {
+      this.pauseNativeAudio();
+    } else if (command === 'stop') {
+      this.stopNativeAudio();
+    } else if (command === 'seek' && typeof value === 'number') {
+      this.seekNativeAudio(value);
+    }
+  }
+
   private async ensureMediaSession(): Promise<avSession.AVSession | undefined> {
     try {
       if (this.mediaSession) return this.mediaSession;
@@ -522,7 +506,7 @@ export class BiuBridge {
       const artwork = await this.loadArtwork(coverUrl);
       const metadata: avSession.AVMetadata = {
         assetId: assetId || 'biu',
-        title: title || '未命名歌曲',
+        title: title || 'Untitled',
         artist: artist || 'biu',
         album: album || '',
         duration: Math.max(0, Math.round(durationSec * 1000)),
@@ -624,123 +608,4 @@ export class BiuBridge {
     }
   }
 
-  private emitCommand(command: string, value?: number): void {
-    if (!this.controller) return;
-    const valuePart = typeof value === 'number' ? `,${JSON.stringify(value)}` : '';
-    const script =
-      `window.__biuAvCommand && window.__biuAvCommand(${JSON.stringify(command)}${valuePart})`;
-    this.controller.runJavaScript(script).catch(() => {});
-  }
-
-  request(requestId: string, url: string, method: string, headersJson: string, body: string): void {
-    try {
-      const headers = this.parseHeaders(headersJson);
-    const cookie = webview.WebCookieManager.fetchCookieSync(url);
-    if (cookie) {
-      headers['Cookie'] = cookie;
-    }
-    const isPlayUrl = url.indexOf('/x/player/playurl') >= 0;
-    const isBilibili = url.indexOf('bilibili.com') >= 0;
-    const desktopUa = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ' +
-      '(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
-    if (isPlayUrl) {
-      // Match the WebView UA: desktop playurl responses point at CDN URLs that
-      // require a desktop Referer, which <audio> cannot send.
-      headers['User-Agent'] = 'Mozilla/5.0 (Linux; Android 15; BiuHarmony 2.0.0) AppleWebKit/537.36 ' +
-        '(KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36';
-    } else if (isBilibili) {
-      headers['Referer'] = 'https://www.bilibili.com/';
-      headers['Origin'] = 'https://www.bilibili.com';
-      headers['User-Agent'] = desktopUa;
-    } else {
-      // Lyrics/cover catalogues must not receive a Bilibili Origin/Referer.
-      headers['User-Agent'] = desktopUa;
-    }
-
-    const options: http.HttpRequestOptions = {
-      method: this.toMethod(method),
-      header: headers,
-      expectDataType: http.HttpDataType.STRING,
-      connectTimeout: 15000,
-      readTimeout: 30000,
-      usingCache: false
-    };
-    if (body) {
-      options.extraData = body;
-    }
-
-    http.createHttp().request(url, options, (error, data) => {
-      try {
-        if (error) {
-          this.resolve(requestId, 0, '{}', JSON.stringify({ error: error.message }));
-          return;
-        }
-        this.storeCookies(data.header, url);
-        const result = data.result;
-        const text = typeof result === 'string' ? result : JSON.stringify(result);
-        this.resolve(requestId, data.responseCode, JSON.stringify(data.header ?? {}), text);
-      } catch (callbackError) {
-        // An exception on the HTTP callback thread becomes an uncaught JsError
-        // and terminates the HAP; keep every path contained.
-        this.resolve(requestId, 0, '{}', JSON.stringify({ error: 'native callback failed' }));
-        }
-      });
-    } catch (setupError) {
-      // fetchCookieSync / createHttp can throw synchronously on malformed input.
-      this.resolve(requestId, 0, '{}', JSON.stringify({ error: 'native request setup failed' }));
-    }
-  }
-
-  private resolve(requestId: string, status: number, headersJson: string, body: string): void {
-    if (!this.controller) {
-      return;
-    }
-    const payload = JSON.stringify({ status, headers: headersJson, body });
-    const script = `window.__biuHarmonyResolve && window.__biuHarmonyResolve(${JSON.stringify(requestId)}, ${payload})`;
-    this.controller.runJavaScript(script).catch(() => {});
-  }
-
-  private parseHeaders(headersJson: string): Record<string, string> {
-    try {
-      return JSON.parse(headersJson) as Record<string, string>;
-    } catch (error) {
-      return {};
-    }
-  }
-
-  private toMethod(method: string): http.RequestMethod {
-    switch (method.toUpperCase()) {
-      case 'POST':
-        return http.RequestMethod.POST;
-      case 'PUT':
-        return http.RequestMethod.PUT;
-      case 'DELETE':
-        return http.RequestMethod.DELETE;
-      default:
-        return http.RequestMethod.GET;
-    }
-  }
-
-  private storeCookies(header: Object, url: string): void {
-    // Only Bilibili cookies belong in the WebView jar. Third-party metadata
-    // catalogues often return cookies in non-RFC6265 forms, and passing those to
-    // configCookieSync throws 17100005 and kills the app via JsError.
-    if (url.indexOf('bilibili.com') < 0) {
-      return;
-    }
-    const values = header as Record<string, string | string[]>;
-    const setCookie = values['set-cookie'] ?? values['Set-Cookie'];
-    if (!setCookie) {
-      return;
-    }
-    const cookies = Array.isArray(setCookie) ? setCookie : [setCookie];
-    for (const cookie of cookies) {
-      try {
-        webview.WebCookieManager.configCookieSync('https://www.bilibili.com', cookie, false, true);
-      } catch (error) {
-        // Ignore malformed/expired cookies instead of letting an HTTP callback
-        // exception terminate the whole application.
-      }
-    }
-  }
 }

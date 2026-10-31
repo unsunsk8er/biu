@@ -3,7 +3,6 @@ import { http } from '@kit.NetworkKit'
 import { cryptoFramework } from '@kit.CryptoArchitectureKit'
 import { util } from '@kit.ArkTS'
 import { preferences } from '@kit.ArkData'
-import { webview } from '@kit.ArkWeb'
 
 export interface NativeSearchItem {
   bvid: string
@@ -147,8 +146,7 @@ const MIXIN_KEY_ENC_TAB: number[] = [
 ]
 
 /**
- * Native Bilibili client. This is the first piece of the ArkTS data layer that
- * will replace the renderer-side API calls when the WebView is removed.
+ * Native Bilibili client for the fully native ArkUI app.
  */
 export class NativeBiliApi {
   private context: common.UIAbilityContext
@@ -174,19 +172,7 @@ export class NativeBiliApi {
   private readCookie(): string {
     const pref = this.getPref()
     if (pref) {
-      const stored = pref.getSync('cookies', '') as string
-      if (stored) return stored
-    }
-    // Migration path: while the WebView still exists, reuse its cookie jar.
-    try {
-      const cookie = webview.WebCookieManager.fetchCookieSync(BILI_API)
-      if (cookie) {
-        pref?.putSync('cookies', cookie)
-        pref?.flush()
-        return cookie
-      }
-    } catch (error) {
-      // No WebView/cookie jar available.
+      return pref.getSync('cookies', '') as string
     }
     return ''
   }

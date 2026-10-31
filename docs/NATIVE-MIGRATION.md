@@ -1,8 +1,20 @@
 # 原生迁移计划
 
+> **状态：已完成。** 当前 HAP 为纯原生 ArkUI + ArkTS，不再包含 WebView、`rawfile/www`、React 或 Vite 构建链。
+
 目标：把 ArkWeb 中的 React UI 逐页替换为 ArkUI，最终移除 WebView 与 `rawfile/www`。
 
 ## 已完成
+
+### Phase 8：移除 WebView 与 Web 构建链
+
+- `Index.ets` 删除 `Web` 组件、`webview` 控制器、JS Proxy、`rawfile/www`
+- `BiuBridge` 删除 WebView 请求代理、JS 回调、Cookie jar 依赖
+- 删除原生页面中对 `runJavaScript` / localStorage 的同步
+- React/Web 源码、Vite、Vitest、ESLint 配置归档到 `archive/legacy/web-ui/`
+- `package.json` 只保留 HAP 构建与真机冒烟脚本
+- `scripts/build-harmony-phone.mjs` 直接构建 HAP，不再先跑 Web 构建
+- HAP 真机验证：无 WebView 启动、搜索、播放、歌词、歌单、下载均可用
 
 ### Phase 7：原生下载与离线播放
 

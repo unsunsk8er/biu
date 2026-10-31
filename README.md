@@ -1,70 +1,54 @@
 # biu
 
 > 基于 Bilibili 的 HarmonyOS 手机音乐播放器。  
-> 自用项目，不做分发。
-
-## 当前范围
-
-本项目现在**只维护 HarmonyOS 手机端**。
-
-保留：
-
-- `src/`：共享的 React Web UI
-- `platform/HarmonyOSPhone/`：鸿蒙手机壳、原生音频、NAPI
-- `scripts/`：鸿蒙手机端构建与设备测试脚本
-
-已归档：
-
-- `archive/legacy/android/`：Android 工程
-- `archive/legacy/electron/`：Electron 桌面端
-- `archive/legacy/platform-HarmonyOS/`：鸿蒙 PC 端工程
-- `archive/legacy/electron-build/`：桌面打包资源
-- `archive/legacy/scripts/`、`archive/legacy/workflows/`、`archive/legacy/docs/`
-
-归档代码仅用于追溯，不再构建、不再维护。
-
-## 功能
-
-- B 站搜索、视频/合集分P播放
-- 封面、标题、歌手匹配
-- 自动歌词
-- 队列、随机、循环、收藏
-- 下载/离线缓存
-- 鸿蒙原生后台播放
-- 回前台不中断、暂停后原地继续
-- 歌单 / 下载 / 设置页面
+> 纯原生 ArkUI + ArkTS，自用项目，不做分发。
 
 ## 架构
 
 ```text
-B 站 m4s
-  → 原生下载
-  → AVTranscoder 转 MP4
-  → OHOS AVMuxer 重封装 M4A
-  → 原生 AVPlayer（fd://）
-  → audioPlayback 后台连续任务
+ArkUI 原生页面
+  ├─ 搜索 / 歌单 / 下载 / 设置
+  ├─ 播放页 / 歌词 / 迷你播放栏
+  ├─ ArkTS 数据层（HTTP / WBI / Cookie / Preferences）
+  └─ 原生音频
+       ├─ AVPlayer
+       ├─ AVTranscoder + NAPI AVMuxer（m4s → M4A）
+       └─ audioPlayback 后台任务
 ```
 
-UI 与播放控制仍由共享的 React 代码提供；鸿蒙侧通过 `BiuHarmony` 桥接原生播放、请求代理和媒体会话。
+当前版本已移除 ArkWeb WebView、`rawfile/www`、React/Vite 构建链和 JS 桥。
 
-## 开发
+## 功能
+
+- B 站原生搜索
+- 原生播放页 / 进度控制 / 暂停继续
+- 原生歌词获取、LRC 解析、高亮滚动
+- 原生迷你播放栏，收起播放页后继续播放
+- 原生歌单与原生 Preferences 存储
+- 原生下载列表与离线播放
+- 原生设置（主题 / 音质 / 歌词 / 封面 / 缓存）
+- 鸿蒙后台播放
+
+## 目录
+
+```text
+platform/HarmonyOSPhone/   鸿蒙手机应用（活动代码）
+  entry/src/main/ets/
+    pages/                 原生页面
+    common/                API / 音频桥 / 存储
+    cpp/                   NAPI AVMuxer
+archive/legacy/web-ui/     已归档的 React/Web 版本
+archive/legacy/            其他历史平台
+scripts/                   HAP 构建与真机冒烟
+release/                   HAP 产物
+```
+
+## 构建
 
 要求：
 
 - Node.js >= 22.12
 - DevEco Studio / HarmonyOS SDK
-- 可选：连接鸿蒙手机用于真机验证
-
-```bash
-npm install
-npm run dev          # 浏览器调试 Web UI
-npm run typecheck
-npm run lint
-npm test
-npm run check
-```
-
-## 构建 HAP
 
 ```bash
 npm run harmony:phone:build
@@ -82,15 +66,14 @@ release/biu-2.0.0-harmony-phone.hap
 npm run harmony:phone:release
 ```
 
-## 真机验证
+真机冒烟：
 
 ```bash
 npm run smoke:harmony
-npm run e2e:harmony
 ```
 
 ## 说明
 
-- 本项目依赖 B 站接口、歌词与曲库第三方服务；外部服务变化可能导致局部功能失效。
-- 原生音频链路依赖设备系统能力，系统升级后建议回归一次后台播放。
-- 历史平台代码已归档，不再参与 `npm run check`、Web 构建或 HAP 构建。
+- 依赖 B 站接口、歌词第三方服务；外部服务变化可能导致局部功能失效。
+- 原生音频链路依赖设备系统能力，鸿蒙系统升级后建议回归一次后台播放。
+- Web/React 版本不会再参与构建，仅保留在归档中。

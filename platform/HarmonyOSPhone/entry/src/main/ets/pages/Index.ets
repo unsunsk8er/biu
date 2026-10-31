@@ -1,45 +1,23 @@
-import { webview } from '@kit.ArkWeb';
 import { common } from '@kit.AbilityKit';
 import { window } from '@kit.ArkUI';
 import display from '@ohos.display';
 import { BiuBridge } from '../common/BiuBridge';
 import { NativeSearchItem } from '../common/NativeBiliApi';
+import { NativeDownload, NativeTrack } from '../common/NativeLibrary';
+import { NativeDownloadsPage } from './NativeDownloadsPage';
 import { NativePlayerPage, NativePlayerState } from './NativePlayerPage';
 import { NativePlaylistsPage } from './NativePlaylistsPage';
-import { NativeDownloadsPage } from './NativeDownloadsPage';
 import { NativeSearchPage } from './NativeSearchPage';
 import { NativeSettingsPage } from './NativeSettingsPage';
-import { NativeDownload, NativeTrack } from '../common/NativeLibrary';
-
-const RESOURCE_METHODS: string[] = [
-  'getVersion',
-  'getPlatform',
-  'openExternal',
-  'exitApp',
-  'request',
-  'setMediaSession',
-  'setMediaSessionLyric',
-  'setMediaSessionState',
-  'clearMediaSession',
-  'setBackMode',
-  'cacheAudioFile'
-];
-
-const RESOURCE_PERMISSION = '{"javascriptProxyPermission":{"urlPermissionList":[{"scheme":"resource","host":"rawfile","port":"","path":""}],"methodList":[' +
-  RESOURCE_METHODS.map((methodName: string) =>
-    `{"methodName":"${methodName}","urlPermissionList":[{"scheme":"resource","host":"rawfile","port":"","path":""}]}`
-  ).join(',') + ']}}';
 
 @Entry
 @Component
 struct Index {
-  private controller: webview.WebviewController = new webview.WebviewController();
   private bridge: BiuBridge = new BiuBridge(getContext(this) as common.UIAbilityContext);
-  @State private showNativeTabs: boolean = true;
   @State private bottomInset: number = 0;
-  @State private topInset: number = 0;
+  @State private topInset: number = 48;
   @State private activeTab: string = '/search';
-  @State private nativeSearchOpen: boolean = false;
+  @State private nativeSearchOpen: boolean = true;
   @State private nativePlaylistsOpen: boolean = false;
   @State private nativeDownloadsOpen: boolean = false;
   @State private miniVisible: boolean = false;
@@ -58,10 +36,7 @@ struct Index {
   @StorageLink('biu-theme') private nativeTheme: string = 'light';
 
   aboutToAppear(): void {
-    this.bridge.setController(this.controller);
-    this.bridge.setAtRootListener((atRoot: boolean) => {
-      this.showNativeTabs = atRoot;
-    });
+    this.injectInsets();
     window.getLastWindow(getContext(this)).then((mainWindow: window.Window) => {
       mainWindow.on('avoidAreaChange', () => {
         this.injectInsets();
@@ -69,35 +44,19 @@ struct Index {
     }).catch(() => {});
   }
 
-  /**
-   * ArkUI lays the Web out edge-to-edge because of expandSafeArea(). Publish
-   * the real status/navigation insets to the existing CSS variables so the
-   * header, bottom player and tab bar stay clear of system UI.
-   */
   private async injectInsets(): Promise<void> {
     try {
       const mainWindow = await window.getLastWindow(getContext(this));
       const density = display.getDefaultDisplaySync().densityPixels || 1;
       const systemArea = mainWindow.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM);
       const indicatorArea = mainWindow.getWindowAvoidArea(window.AvoidAreaType.TYPE_NAVIGATION_INDICATOR);
-      const top = Math.max(systemArea.topRect.height, 0) / density;
-      const bottom = Math.max(systemArea.bottomRect.height, indicatorArea.bottomRect.height, 0) / density;
-      this.topInset = top;
-      this.bottomInset = bottom;
-      const script =
-        `document.documentElement.style.setProperty('--biu-inset-top','${top}px');` +
-        `document.documentElement.style.setProperty('--biu-inset-bottom','${bottom}px');`;
-      await this.controller.runJavaScript(script);
+      this.topInset = Math.max(Math.max(systemArea.topRect.height, 0) / density, 48);
+      this.bottomInset = Math.max(Math.max(systemArea.bottomRect.height, indicatorArea.bottomRect.height, 0) / density, 0);
     } catch (error) {
-      // The Web may not be attached yet; onPageEnd retries.
+      // Insets fall back to zero; the native pages remain usable.
     }
   }
 
-  /**
-   * Native touch targets over the Web tab bar. ArkWeb on this device does not
-   * reliably deliver taps to the bottom links, so these transparent native
-   * buttons own the gesture and drive the hash router directly.
-   */
   @Builder
   NativeTabButton(path: string, label: string) {
     Button() {
@@ -134,12 +93,10 @@ struct Index {
         this.nativeDownloadsOpen = true;
         return;
       }
-      if (this.activeTab === path) return;
       this.activeTab = path;
       this.nativeSearchOpen = false;
       this.nativePlaylistsOpen = false;
       this.nativeDownloadsOpen = false;
-      // Settings is fully native as well; no WebView route change is needed.
     })
   }
 
@@ -205,12 +162,10 @@ struct Index {
   }
 
   onBackPress(): boolean {
-    // Native player collapses into the mini player instead of stopping audio.
     if (this.miniOpen) {
       this.miniOpen = false;
       return true;
     }
-    // Native search closes back to the Web tab underneath.
     if (this.nativeSearchOpen) {
       this.nativeSearchOpen = false;
       return true;
@@ -223,57 +178,18 @@ struct Index {
       this.nativeDownloadsOpen = false;
       return true;
     }
-    // The native settings page is a top-level ArkUI layer; back returns to the
-    // previously active Web tab instead of exiting the app.
     if (this.activeTab === '/settings') {
       this.activeTab = '/search';
-      this.controller.loadUrl('resource://rawfile/www/index.html#/search');
+      this.nativeSearchOpen = true;
       return true;
     }
-    // Root tabs return false so the system side-back gesture goes to the
-    // launcher; overlays/subpages keep the gesture and resolve in React.
-    if (this.bridge.shouldUseSystemBack()) {
-      return false;
-    }
-    this.controller.runJavaScript(
-      'window.__biuBackPressed ? window.__biuBackPressed() : "fallback"'
-    ).catch(() => {});
-    return true;
+    // Root tabs release back to the launcher.
+    return false;
   }
 
   build() {
     Column() {
       Stack() {
-        Web({ src: $rawfile('www/index.html'), controller: this.controller })
-          .width('100%')
-          .height('100%')
-          .opacity(this.activeTab === '/settings' || this.nativeSearchOpen || this.nativePlaylistsOpen || this.nativeDownloadsOpen ? 0 : 1)
-          .javaScriptAccess(true)
-          .domStorageAccess(true)
-          .fileAccess(true)
-          .imageAccess(true)
-          .onlineImageAccess(true)
-          .mixedMode(MixedMode.All)
-          .zoomAccess(false)
-          .horizontalScrollBarAccess(false)
-          .verticalScrollBarAccess(false)
-          .userAgent('Mozilla/5.0 (Linux; Android 15; BiuHarmony 2.0.0) AppleWebKit/537.36 ' +
-            '(KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36')
-          .javaScriptProxy({
-            object: this.bridge,
-            name: 'BiuHarmony',
-            methodList: ['getVersion', 'getPlatform', 'openExternal', 'exitApp', 'request',
-              'setMediaSession', 'setMediaSessionLyric', 'setMediaSessionState', 'clearMediaSession', 'setBackMode',
-              'cacheAudioFile'],
-            controller: this.controller
-          })
-          .onPageEnd(() => {
-            this.bridge.setController(this.controller);
-            this.injectInsets();
-            this.controller.runJavaScript(
-              "document.documentElement.dataset.biuNativeTabs='true';"
-            ).catch(() => {});
-          })
         if (this.nativeSearchOpen) {
           NativeSearchPage({
             topInset: this.topInset,
@@ -289,11 +205,10 @@ struct Index {
           })
         }
         if (this.activeTab === '/settings') {
-          NativeSettingsPage({ controller: this.controller, topInset: this.topInset })
+          NativeSettingsPage({ topInset: this.topInset })
         }
         if (this.nativePlaylistsOpen) {
           NativePlaylistsPage({
-            controller: this.controller,
             topInset: this.topInset,
             onPlayTrack: (track: NativeTrack) => {
               this.currentLocalPath = '';
@@ -352,9 +267,7 @@ struct Index {
       if (this.miniVisible && !this.miniOpen) {
         this.NativeMiniBar()
       }
-      if (this.showNativeTabs) {
-        this.NativeTabsBar()
-      }
+      this.NativeTabsBar()
     }
     .width('100%')
     .height('100%')

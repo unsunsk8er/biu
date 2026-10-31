@@ -1,10 +1,8 @@
 import { common } from '@kit.AbilityKit'
-import { webview } from '@kit.ArkWeb'
 import { NativeLibrary, NativePlaylist, NativeTrack } from '../common/NativeLibrary'
 
 @Component
 export struct NativePlaylistsPage {
-  controller: webview.WebviewController = new webview.WebviewController()
   topInset: number = 0
   onPlayTrack: (track: NativeTrack) => void = () => {}
 
@@ -23,9 +21,6 @@ export struct NativePlaylistsPage {
   private async load(): Promise<void> {
     this.loading = true
     try {
-      await this.library.migrateFromWeb(this.controller)
-      this.playlists = this.library.getPlaylists()
-    } catch (error) {
       this.playlists = this.library.getPlaylists()
     } finally {
       this.loading = false

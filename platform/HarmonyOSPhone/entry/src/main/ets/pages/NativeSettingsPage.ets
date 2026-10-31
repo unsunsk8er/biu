@@ -1,19 +1,10 @@
 import { preferences } from '@kit.ArkData'
-import { webview } from '@kit.ArkWeb'
 
 type ThemeMode = 'light' | 'dark'
 type PlayQuality = '标准' | '高品质' | '无损'
 
 interface NativeSettings {
   theme: ThemeMode
-  playQuality: PlayQuality
-  autoCache: boolean
-  showLyrics: boolean
-  autoMatchCover: boolean
-}
-
-interface WebAppSettings {
-  sidebarState: string
   playQuality: PlayQuality
   autoCache: boolean
   showLyrics: boolean
@@ -33,7 +24,6 @@ const DEFAULTS: NativeSettings = {
 
 @Component
 export struct NativeSettingsPage {
-  controller: webview.WebviewController = new webview.WebviewController()
   topInset: number = 0
 
   @State private settings: NativeSettings = DEFAULTS
@@ -41,7 +31,6 @@ export struct NativeSettingsPage {
 
   aboutToAppear(): void {
     this.loadNative()
-    this.hydrateFromWeb()
   }
 
   private getPref(): preferences.Preferences | undefined {
@@ -73,31 +62,6 @@ export struct NativeSettingsPage {
     }
   }
 
-  private hydrateFromWeb(): void {
-    const script =
-      `(function(){` +
-      `var out={};try{var s=JSON.parse(localStorage.getItem('biu_settings')||'{}');` +
-      `out.playQuality=s.playQuality||'高品质';out.autoCache=!!s.autoCache;` +
-      `out.showLyrics=s.showLyrics!==false;out.autoMatchCover=s.autoMatchCover!==false;}catch(e){}` +
-      `out.theme=localStorage.getItem('theme-mode')==='dark'?'dark':'light';` +
-      `return JSON.stringify(out);})()`
-    this.controller.runJavaScript(script).then((raw: string) => {
-      try {
-        const parsed = JSON.parse(raw) as NativeSettings
-        this.settings = {
-          theme: parsed.theme === 'dark' ? 'dark' : 'light',
-          playQuality: parsed.playQuality === '标准' || parsed.playQuality === '无损' ? parsed.playQuality : '高品质',
-          autoCache: Boolean(parsed.autoCache),
-          showLyrics: parsed.showLyrics !== false,
-          autoMatchCover: parsed.autoMatchCover !== false,
-        }
-        this.persist()
-      } catch (error) {
-        // Web page not ready yet; native values remain.
-      }
-    }).catch(() => {})
-  }
-
   private persist(): void {
     AppStorage.setOrCreate('biu-theme', this.settings.theme)
     try {
@@ -109,23 +73,6 @@ export struct NativeSettingsPage {
     } catch (error) {
       // A failed native write must not block the UI.
     }
-    this.syncWeb()
-  }
-
-  private syncWeb(): void {
-    const appSettings: WebAppSettings = {
-      sidebarState: 'auto',
-      playQuality: this.settings.playQuality,
-      autoCache: this.settings.autoCache,
-      showLyrics: this.settings.showLyrics,
-      autoMatchCover: this.settings.autoMatchCover,
-    }
-    const script =
-      `try{localStorage.setItem('biu_settings', ${JSON.stringify(JSON.stringify(appSettings))});` +
-      `localStorage.setItem('theme-mode', '${this.settings.theme}');` +
-      `document.documentElement.setAttribute('data-theme', '${this.settings.theme}');` +
-      `window.dispatchEvent(new Event('biu:settings-changed'));}catch(e){}`
-    this.controller.runJavaScript(script).catch(() => {})
   }
 
   private pageBg(): string {

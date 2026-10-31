@@ -165,6 +165,7 @@ export struct NativePlayerPage {
       time: this.time,
       duration: this.duration,
     })
+    this.bridge.setMediaSessionState(this.playing, this.time, this.duration)
   }
 
   aboutToDisappear(): void {
@@ -185,6 +186,7 @@ export struct NativePlayerPage {
       this.artist = info.artist
       this.cover = info.cover
       if (info.duration > 0) this.duration = info.duration
+      this.bridge.setMediaSession(info.bvid, info.title, info.artist, '', info.cover, '', info.duration)
       this.notify()
       const source = await api.getPlayUrl(info.bvid, info.cid)
       this.requestId = `native-player-${Date.now()}`

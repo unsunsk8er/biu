@@ -1,6 +1,5 @@
 import { common } from '@kit.AbilityKit'
 import { preferences } from '@kit.ArkData'
-import { webview } from '@kit.ArkWeb'
 
 export interface NativeTrack {
   bvid: string
@@ -123,44 +122,6 @@ export class NativeLibrary {
       }
     }
     return out
-  }
-
-  async migrateFromWeb(controller: webview.WebviewController): Promise<void> {
-    if (this.read(KEY_MIGRATED) === '1') return
-    const script =
-      `(function(){try{return JSON.stringify({` +
-      `playlists:JSON.parse(localStorage.getItem('biu_playlists')||'[]'),` +
-      `favorites:JSON.parse(localStorage.getItem('biu_favorites')||'[]'),` +
-      `recent:JSON.parse(localStorage.getItem('biu_recent')||'[]')` +
-      `});}catch(e){return '{}';}})()`
-    try {
-      const raw = await controller.runJavaScript(script)
-      const payload = JSON.parse(raw) as WebLibraryPayload
-      const playlists: NativePlaylist[] = []
-      for (const item of payload.playlists || []) {
-        const tracks = this.normalizeTracks(item.tracks)
-        if (!item.id && !tracks.length) continue
-        playlists.push({
-          id: String(item.id || `playlist_${Date.now()}`),
-          name: String(item.name || '歌单'),
-          description: String(item.description || ''),
-          coverUrl: String(item.coverUrl || tracks[0]?.coverUrl || ''),
-          tracks,
-          createdAt: String(item.createdAt || ''),
-          updatedAt: String(item.updatedAt || ''),
-        })
-      }
-      if (playlists.length) this.write(KEY_PLAYLISTS, JSON.stringify(playlists))
-      if (payload.favorites?.length) {
-        this.write(KEY_FAVORITES, JSON.stringify(this.normalizeTracks(payload.favorites)))
-      }
-      if (payload.recent?.length) {
-        this.write(KEY_RECENT, JSON.stringify(this.normalizeTracks(payload.recent)))
-      }
-      this.write(KEY_MIGRATED, '1')
-    } catch (error) {
-      // Web page not ready; retry on the next open.
-    }
   }
 
   getPlaylists(): NativePlaylist[] {
