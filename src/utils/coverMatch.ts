@@ -7,7 +7,7 @@ import { artistSimilarity, inferCoverQueries, normalizeCoverText, scoreCoverCand
 // 封面匹配：只改当前播放曲目的封面，不触碰 B 站视频原始数据。
 // 结果按“歌名 + 歌手”缓存在 localStorage，同一首歌不会重复请求。
 
-const CACHE_KEY = 'biu_cover_cache_v6'
+const CACHE_KEY = 'biu_cover_cache_v7'
 const POSITIVE_TTL = 30 * 24 * 60 * 60 * 1000
 const MIN_SCORE = 0.55
 const MAX_ENTRIES = 300
@@ -37,7 +37,7 @@ const pending = new Map<string, Promise<MatchedCover | null>>()
 // "determined"; only the explicit refresh button may retry it. This is kept
 // separately from the positive cover cache so a no-match result is not retried
 // automatically on every playback or app restart.
-const ATTEMPT_KEY = 'biu_cover_match_attempted_v1'
+const ATTEMPT_KEY = 'biu_cover_match_attempted_v2'
 const MAX_ATTEMPTS = 2000
 
 function attemptKey(track: Pick<Track, 'id' | 'title' | 'artist'>): string {

@@ -42,7 +42,7 @@ describe('videoPageTracks', () => {
     }))
 
     expect(tracks.map((track) => track.id)).toEqual(['BV1test:p1', 'BV1test:p2'])
-    expect(tracks.map((track) => track.title)).toEqual(['P1 · Opening', 'P2 · Finale'])
+    expect(tracks.map((track) => track.title)).toEqual(['Opening', 'Finale'])
     expect(tracks.map((track) => track.cid)).toEqual([11, 22])
     expect(tracks.map((track) => track.page)).toEqual([1, 2])
     expect(tracks[1].videoUrl).toBe('https://www.bilibili.com/video/BV1test?p=2')

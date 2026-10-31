@@ -299,6 +299,7 @@ function stripArtistFromTitle(title: string, artist: string): string {
   for (const name of artists.sort((a, b) => b.length - a.length)) {
     const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
     const edge = new RegExp(`^\\s*${escaped}\\s*[-–—－·|:：]\\s*|\\s*[-–—－·|:：]\\s*${escaped}\\s*$`, 'gi')
+    const tightSeparator = new RegExp(`^\\s*${escaped}\\s*[-–—－·|:：]+\\s*|\\s*[-–—－·|:：]+\\s*${escaped}\\s*$`, 'gi')
     const bracket = new RegExp(`[【\\[（(]\\s*${escaped}\\s*[】\\]）)]`, 'gi')
     const prefix = new RegExp(`^\\s*${escaped}\\s+`, 'i')
     const suffix = new RegExp(`\\s+${escaped}\\s*$`, 'i')
@@ -306,6 +307,7 @@ function stripArtistFromTitle(title: string, artist: string): string {
     const suffixTight = new RegExp(`${escaped}$`, 'i')
     next = next
       .replace(edge, ' ')
+      .replace(tightSeparator, ' ')
       .replace(bracket, ' ')
       .replace(prefix, ' ')
       .replace(suffix, ' ')
@@ -429,7 +431,10 @@ function titleArtistPairs(rawTitle: string): Array<[string, string]> {
  * the last is a title-only fallback for uploader-style artist fields.
  */
 export function inferCoverQueries(rawTitle: string, rawArtist: string): CoverQuery[] {
-  const titleRaw = String(rawTitle || '').trim()
+  // A multi-part title can arrive as "P1 · 001.Artist-Title". Strip the page
+  // marker before the title/artist parser so the "P1" branch does not fall
+  // through to a title-only candidate.
+  const titleRaw = String(rawTitle || '').replace(/^P\d+\s*[·•:：.-]?\s*/i, '').trim()
   const artistRaw = String(rawArtist || '').trim()
   const baseTitle = cleanTitle(titleRaw)
   if (!baseTitle) return []

@@ -5,6 +5,7 @@ import { addRecentTrack, toggleFavoriteTrack, loadFavoriteTracks, updateTrackEve
 import { useAppSettings } from '@/hooks/useAppSettings'
 import { readStoredItem, writeStoredItem } from '@/utils/persistentStorage'
 import { coverMatchWasAttempted, findMatchedCover, markCoverMatchAttempted, type MatchedCover } from '@/utils/coverMatch'
+import { inferCoverQuery } from '@/utils/coverMatchQuery'
 import { isAndroidApp, isHarmonyApp } from '@/utils/mobile'
 import {
   audioCacheKey,
@@ -99,8 +100,8 @@ function loadPersistedPlayerState(): PersistedPlayerState {
     const raw = readStoredItem(PLAYER_STATE_KEY)
     if (!raw) return fallback
     const parsed = JSON.parse(raw) as Partial<PersistedPlayerState>
-    const currentTrack = parsed.currentTrack || null
-    let queue = Array.isArray(parsed.queue) ? parsed.queue : []
+    const currentTrack = parsed.currentTrack ? repairMatchedTrack(parsed.currentTrack) : null
+    let queue = Array.isArray(parsed.queue) ? parsed.queue.map(repairMatchedTrack) : []
     // Older/corrupted state can contain a current track with an empty or
     // mismatched queue. Now Playing would show the song, but next/previous
     // returned immediately. Repair the queue before restoring playback.
@@ -154,6 +155,26 @@ function getArtworkType(url: string): string | undefined {
   if (/\.png($|\?)/i.test(url)) return 'image/png'
   if (/\.(jpe?g)($|\?)/i.test(url)) return 'image/jpeg'
   return undefined
+}
+
+/**
+ * Cover matching used to write a third-party title/artist back into the track.
+ * That turned multi-part collection entries into misleading pairs such as
+ * "杰伦 / 无损音乐合集". Rebuild identity from the Bilibili part title and stop
+ * treating the matched metadata as authoritative.
+ */
+function repairMatchedTrack(track: Track): Track {
+  const source = String(track.partTitle || track.videoTitle || '').trim()
+  if (!source) return track
+  const inferred = inferCoverQuery(source, track.artist)
+  if (!inferred.title) return track
+  return {
+    ...track,
+    title: inferred.title,
+    artist: inferred.artist || track.artist,
+    metadataMatched: false,
+    coverMatched: false,
+  }
 }
 
 function setMediaSessionAction(action: MediaSessionAction, handler: MediaSessionActionHandler | null): void {
@@ -1225,26 +1246,17 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const applyMatchedInfo = useCallback((trackId: string, match: MatchedCover) => {
     const updateTrack = (track: Track): Track => {
       if (track.id !== trackId) return track
-      const title = match.title || track.title
-      const artist = match.artist || track.artist
+      // A cover lookup must never rewrite Bilibili's song identity. Provider
+      // catalogue entries can disagree on title/artist (especially for a
+      // multi-part collection), and that used to make the player show a valid
+      // cover next to the wrong song name.
       const coverUrl = match.coverUrl || track.coverUrl
-      const album = match.album || track.album
-      if (
-        title === track.title
-        && artist === track.artist
-        && coverUrl === track.coverUrl
-        && album === track.album
-        && track.coverMatched
-        && track.metadataMatched
-      ) return track
+      if (coverUrl === track.coverUrl && track.coverMatched) return track
       return {
         ...track,
-        title,
-        artist,
         coverUrl,
-        album,
         coverMatched: Boolean(match.coverUrl) || track.coverMatched,
-        metadataMatched: Boolean(match.title || match.artist) || track.metadataMatched,
+        metadataMatched: true,
       }
     }
     setCurrentTrack(prev => prev ? updateTrack(prev) : prev)

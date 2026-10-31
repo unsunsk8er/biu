@@ -1,5 +1,6 @@
 import type { Track } from '@/types'
 import { toHttpsUrl, type VideoDetail } from '@/services/bilibiliApi'
+import { inferCoverQuery } from '@/utils/coverMatchQuery'
 
 /**
  * Turn every Bilibili video page into a normal Track. Multi-P IDs include the
@@ -13,22 +14,26 @@ export function videoPageTracks(detail: VideoDetail): Track[] {
   const multiPage = pages.length > 1
   const coverUrl = toHttpsUrl(detail.pic)
 
-  return pages.map(page => ({
-    id: multiPage ? `${detail.bvid}:p${page.page}` : detail.bvid,
-    title: multiPage ? `P${page.page} · ${page.part || detail.title}` : detail.title,
-    artist: detail.owner.name,
-    coverUrl,
-    duration: page.duration || detail.duration,
-    videoUrl: multiPage
-      ? `https://www.bilibili.com/video/${detail.bvid}?p=${page.page}`
-      : `https://www.bilibili.com/video/${detail.bvid}`,
-    bvid: detail.bvid,
-    aid: detail.aid,
-    cid: page.cid,
-    page: multiPage ? page.page : undefined,
-    partTitle: page.part,
-    videoTitle: detail.title,
-    playCount: detail.stat?.view || 0,
-    isLiked: false,
-  }))
+  return pages.map(page => {
+    const sourceTitle = multiPage ? (page.part || detail.title) : detail.title
+    const identity = inferCoverQuery(sourceTitle, detail.owner.name)
+    return {
+      id: multiPage ? `${detail.bvid}:p${page.page}` : detail.bvid,
+      title: identity.title || sourceTitle,
+      artist: identity.artist || detail.owner.name,
+      coverUrl,
+      duration: page.duration || detail.duration,
+      videoUrl: multiPage
+        ? `https://www.bilibili.com/video/${detail.bvid}?p=${page.page}`
+        : `https://www.bilibili.com/video/${detail.bvid}`,
+      bvid: detail.bvid,
+      aid: detail.aid,
+      cid: page.cid,
+      page: multiPage ? page.page : undefined,
+      partTitle: page.part,
+      videoTitle: detail.title,
+      playCount: detail.stat?.view || 0,
+      isLiked: false,
+    }
+  })
 }
