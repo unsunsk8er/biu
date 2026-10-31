@@ -1,9 +1,9 @@
-import { memo, startTransition, useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import {
   ChevronDown, Play, Pause, SkipBack, SkipForward, Shuffle, Repeat,
-  Heart, Volume2, VolumeX, Search, Music, Loader2, Maximize2, Minimize2, X, MessageCircle, ExternalLink, ThumbsUp, RefreshCw, Image as ImageIcon, Captions, Download, ListMusic,
+  Heart, Volume2, VolumeX, Search, Music, Loader2, Maximize2, Minimize2, X, ExternalLink, RefreshCw, Image as ImageIcon, Captions, Download, ListMusic,
 } from 'lucide-react'
 import { usePlayer, usePlayerProgress } from '@/contexts/PlayerContext'
 import { useNowPlaying } from '@/contexts/NowPlayingContext'
@@ -15,7 +15,6 @@ import SlowMarquee from '@/components/SlowMarquee'
 import PlayQueue from '@/components/PlayQueue'
 import LyricsView from '@/components/LyricsView'
 import type { LyricCandidate } from '@/services/lyrics'
-import { getVideoComments, type VideoComment } from '@/services/api'
 import { isMobileApp, isMobilePhone } from '@/utils/mobile'
 import { MOTION_BASE, EASE_OUT, springSnappy } from '@/utils/motion'
 
@@ -27,7 +26,6 @@ const sliderTheme = {
 
 const spring = springSnappy
 const noDrag = { WebkitAppRegion: 'no-drag' } as React.CSSProperties
-const commentPageSize = 20
 const AUTO_NOW_PLAYING_IDLE_MS = 30_000
 
 function NowPlayingView() {
@@ -41,19 +39,10 @@ function NowPlayingView() {
   const lyrics = useLyrics(track, expanded && settings.showLyrics)
   const [fullscreen, setFullscreen] = useState(false)
   const [controlsVisible, setControlsVisible] = useState(true)
-  const [commentsOpen, setCommentsOpen] = useState(false)
   const [queueOpen, setQueueOpen] = useState(false)
-  const [commentsStatus, setCommentsStatus] = useState<'idle' | 'loading' | 'ready' | 'error'>('idle')
-  const [comments, setComments] = useState<VideoComment[]>([])
-  const [commentsTotal, setCommentsTotal] = useState(0)
-  const [commentsCursor, setCommentsCursor] = useState('')
-  const [commentsHasMore, setCommentsHasMore] = useState(false)
-  const [commentsError, setCommentsError] = useState('')
-  const [commentsLoadingMore, setCommentsLoadingMore] = useState(false)
-  const [coverMode, setCoverMode] = useState<'cover' | 'lyrics' | 'comments'>('cover')
+  const [coverMode, setCoverMode] = useState<'cover' | 'lyrics'>('cover')
   const mobile = isMobilePhone()
   const tablet = isMobileApp() && !mobile
-  const [sideTab, setSideTab] = useState<'lyrics' | 'comments'>('lyrics')
   const nowPlayingMotion = {
     initial: { opacity: 0, y: mobile ? 16 : 10 },
     animate: { opacity: 1, y: 0 },
@@ -118,61 +107,8 @@ function NowPlayingView() {
     window.electronAPI?.openExternal?.(`https://www.bilibili.com/video/${track.bvid}`)
   }
 
-  const loadComments = useCallback(async (reset = false) => {
-    if (!track?.bvid && !track?.aid) return
-    if (!reset && (!commentsCursor || commentsLoadingMore)) return
-    if (reset) {
-      setCommentsStatus('loading')
-      setCommentsError('')
-    } else {
-      setCommentsLoadingMore(true)
-    }
-
-    try {
-      const data = await getVideoComments(
-        { bvid: track.bvid, aid: track.aid },
-        reset ? '' : commentsCursor,
-        commentPageSize,
-      )
-      startTransition(() => {
-        setComments((prev) => {
-          if (reset) return data.items
-          const seen = new Set(prev.map((comment) => comment.id))
-          return [...prev, ...data.items.filter((comment) => !seen.has(comment.id))]
-        })
-        setCommentsTotal(data.total)
-        setCommentsCursor(data.nextOffset)
-        setCommentsHasMore(data.hasMore)
-        setCommentsStatus('ready')
-      })
-    } catch (error) {
-      const message = error instanceof Error ? error.message : '评论加载失败'
-      setCommentsError(message)
-      if (reset) setCommentsStatus('error')
-    } finally {
-      setCommentsLoadingMore(false)
-    }
-  }, [track?.aid, track?.bvid, commentsCursor, commentsLoadingMore])
-
-  const closeTabletComments = useCallback(() => setSideTab('lyrics'), [])
-  const closeFloatingComments = useCallback(() => setCommentsOpen(false), [])
-  const retryComments = useCallback(() => { void loadComments(true) }, [loadComments])
-  const loadMoreComments = useCallback(() => { void loadComments(false) }, [loadComments])
-
-  const toggleComments = () => {
-    const nextOpen = !commentsOpen
-    setCommentsOpen(nextOpen)
-    if (nextOpen && commentsStatus === 'idle') {
-      void loadComments(true)
-    }
-  }
-
   const cycleCoverMode = () => {
-    const next = coverMode === 'cover' ? 'lyrics' : coverMode === 'lyrics' ? 'comments' : 'cover'
-    setCoverMode(next)
-    if (next === 'comments' && commentsStatus === 'idle') {
-      void loadComments(true)
-    }
+    setCoverMode(current => current === 'cover' ? 'lyrics' : 'cover')
   }
 
   const handleSwipeStart = (event: React.TouchEvent<HTMLDivElement>) => {
@@ -222,22 +158,12 @@ function NowPlayingView() {
   }, [expanded, fullscreen])
 
   useEffect(() => {
-    setCommentsOpen(false)
-    setCommentsStatus('idle')
-    setComments([])
-    setCommentsTotal(0)
-    setCommentsCursor('')
-    setCommentsHasMore(false)
-    setCommentsError('')
-    setCommentsLoadingMore(false)
     setCoverMode('cover')
-    setSideTab('lyrics')
   }, [track?.id])
 
   useEffect(() => {
     if (!expanded) {
       setCoverMode('cover')
-      setSideTab('lyrics')
       setQueueOpen(false)
     }
   }, [expanded])
@@ -420,13 +346,13 @@ function NowPlayingView() {
               className="now-playing-content-mode"
               onClick={cycleCoverMode}
               style={noDrag}
-              title={coverMode === 'cover' ? '显示歌词页' : coverMode === 'lyrics' ? '显示评论' : '返回封面'}
-              aria-label={coverMode === 'cover' ? '显示歌词页' : coverMode === 'lyrics' ? '显示评论' : '返回封面'}
+              title={coverMode === 'cover' ? '显示歌词页' : '返回封面'}
+              aria-label={coverMode === 'cover' ? '显示歌词页' : '返回封面'}
               whileHover={{ y: 1, backgroundColor: 'rgba(255,255,255,0.18)' }}
               whileTap={{ scale: 0.94 }}
             >
-              {coverMode === 'cover' ? <Captions size={16} /> : coverMode === 'lyrics' ? <MessageCircle size={16} /> : <ImageIcon size={16} />}
-              <span>{coverMode === 'cover' ? '歌词' : coverMode === 'lyrics' ? '评论' : '封面'}</span>
+              {coverMode === 'cover' ? <Captions size={16} /> : <ImageIcon size={16} />}
+              <span>{coverMode === 'cover' ? '歌词' : '封面'}</span>
             </motion.button>
             <div className="now-playing-top__actions" style={noDrag}>
               <motion.button
@@ -494,22 +420,6 @@ function NowPlayingView() {
                 {mobile && coverMode === 'lyrics' && (
                   <div className="now-playing-cover-lyrics">
                     {lyricsContent}
-                  </div>
-                )}
-                {mobile && coverMode === 'comments' && (
-                  <div className="now-playing-cover-comments">
-                    <CommentsPanel
-                      comments={comments}
-                      status={commentsStatus}
-                      error={commentsError}
-                      total={commentsTotal}
-                      coverUrl={track.coverUrl}
-                      hasMore={commentsHasMore}
-                      loadingMore={commentsLoadingMore}
-                      onClose={() => setCoverMode('cover')}
-                      onRetry={retryComments}
-                      onLoadMore={loadMoreComments}
-                    />
                   </div>
                 )}
               </div>
@@ -611,63 +521,14 @@ function NowPlayingView() {
                   </div>
                 </div>
                 <PlaybackControls player={player} />
-                {!mobile && !tablet && (
-                  <RoundIcon
-                    className="now-playing-comment-trigger"
-                    active={commentsOpen}
-                    onClick={toggleComments}
-                    title="查看评论"
-                  >
-                    <MessageCircle size={20} />
-                  </RoundIcon>
-                )}
               </div>
               )}
             </section>
 
             {tablet ? (
               <section className="now-playing-tablet-side" ref={tabletSideRef}>
-                <div className="now-playing-tablet-tabs" role="tablist" aria-label="歌词与评论">
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={sideTab === 'lyrics'}
-                    className={sideTab === 'lyrics' ? 'is-active' : ''}
-                    onClick={() => setSideTab('lyrics')}
-                  >
-                    <Captions size={16} />
-                    歌词
-                  </button>
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={sideTab === 'comments'}
-                    className={sideTab === 'comments' ? 'is-active' : ''}
-                    onClick={() => {
-                      setSideTab('comments')
-                      if (commentsStatus === 'idle') void loadComments(true)
-                    }}
-                  >
-                    <MessageCircle size={16} />
-                    评论
-                  </button>
-                </div>
                 <div className="now-playing-tablet-content">
-                  {sideTab === 'lyrics' ? lyricsContent : (
-                    <CommentsPanel
-                      inline
-                      comments={comments}
-                      status={commentsStatus}
-                      error={commentsError}
-                      total={commentsTotal}
-                      coverUrl={track.coverUrl}
-                      hasMore={commentsHasMore}
-                      loadingMore={commentsLoadingMore}
-                      onClose={closeTabletComments}
-                      onRetry={retryComments}
-                      onLoadMore={loadMoreComments}
-                    />
-                  )}
+                  {lyricsContent}
                 </div>
                 <div className="now-playing-tablet-footer">
                   <div className="now-playing-tablet-progress">
@@ -685,22 +546,6 @@ function NowPlayingView() {
             )}
           </main>
 
-          <AnimatePresence>
-            {!mobile && !tablet && commentsOpen && (
-              <CommentsPanel
-                comments={comments}
-                status={commentsStatus}
-                error={commentsError}
-                total={commentsTotal}
-                coverUrl={track.coverUrl}
-                hasMore={commentsHasMore}
-                loadingMore={commentsLoadingMore}
-                onClose={closeFloatingComments}
-                onRetry={retryComments}
-                onLoadMore={loadMoreComments}
-              />
-            )}
-          </AnimatePresence>
       <PlayQueue
         open={queueOpen}
         onClose={() => setQueueOpen(false)}
@@ -722,116 +567,6 @@ export default function NowPlaying() {
   )
 }
 
-const CommentsPanel = memo(function CommentsPanel({
-  comments,
-  status,
-  error,
-  total,
-  coverUrl,
-  hasMore,
-  loadingMore,
-  onClose,
-  onRetry,
-  onLoadMore,
-  inline = false,
-}: {
-  comments: VideoComment[]
-  status: 'idle' | 'loading' | 'ready' | 'error'
-  error: string
-  total: number
-  coverUrl: string
-  hasMore: boolean
-  loadingMore: boolean
-  onClose: () => void
-  onRetry: () => void
-  onLoadMore: () => void
-  inline?: boolean
-}) {
-  return (
-    <motion.aside
-      className={`now-playing-comments ${inline ? 'is-inline' : ''}`}
-      style={{ '--comment-cover': coverUrl ? `url(${coverUrl})` : 'none' } as React.CSSProperties}
-      initial={inline ? false : { opacity: 0, x: 42, scale: 0.985 }}
-      animate={{ opacity: 1, x: 0, scale: 1 }}
-      exit={inline ? undefined : { opacity: 0, x: 42, scale: 0.985 }}
-      transition={inline ? { duration: 0 } : spring}
-    >
-      <div className="now-playing-comments__aura" aria-hidden="true" />
-      <div className="now-playing-comments__head">
-        <div>
-          <span><MessageCircle size={17} />评论</span>
-          <small>{total > 0 ? `${formatCount(total)} 条互动` : '正在读取 Bilibili 评论'}</small>
-        </div>
-        {!inline && (
-          <button type="button" onClick={onClose} title="关闭评论">
-            <X size={18} />
-          </button>
-        )}
-      </div>
-
-      <div className="now-playing-comments__body">
-        {status === 'loading' && (
-          <Centered>
-            <Loader2 size={28} className="spin" />
-            <span>正在加载评论...</span>
-          </Centered>
-        )}
-
-        {status === 'error' && (
-          <Centered>
-            <MessageCircle size={42} strokeWidth={1.25} />
-            <strong>评论加载失败</strong>
-            <span>{error || '稍后再试一次'}</span>
-            <button type="button" onClick={onRetry}><RefreshCw size={14} /> 重新加载</button>
-          </Centered>
-        )}
-
-        {status === 'ready' && comments.length === 0 && (
-          <Centered>
-            <MessageCircle size={42} strokeWidth={1.25} />
-            <strong>暂无评论</strong>
-            <span>这个视频下还没有可展示的评论</span>
-          </Centered>
-        )}
-
-        {status === 'ready' && comments.length > 0 && (
-          <div className="now-playing-comments__list">
-            {comments.map((comment) => (
-              <article key={comment.id} className="now-playing-comment">
-                {comment.avatar
-                  ? <img src={comment.avatar} alt="" loading="lazy" decoding="async" />
-                  : <div className="now-playing-comment__avatar">{comment.author.slice(0, 1).toUpperCase()}</div>}
-                <div className="now-playing-comment__content">
-                  <div className="now-playing-comment__meta">
-                    <strong>{comment.author}</strong>
-                    <span>{formatCommentTime(comment.createdAt)}</span>
-                  </div>
-                  <p>{comment.message}</p>
-                  <div className="now-playing-comment__stats">
-                    <span><ThumbsUp size={13} />{formatCount(comment.like)}</span>
-                    {comment.replyCount > 0 && <span>{formatCount(comment.replyCount)} 条回复</span>}
-                  </div>
-                </div>
-              </article>
-            ))}
-          </div>
-        )}
-        {status === 'ready' && comments.length > 0 && hasMore && (
-          <div className="now-playing-comments__footer">
-            <button type="button" className="now-playing-comments__more" onClick={onLoadMore} disabled={loadingMore}>
-              {loadingMore ? <Loader2 size={15} className="spin" /> : <MessageCircle size={15} />}
-              {loadingMore ? '加载中...' : '加载更多评论'}
-            </button>
-          </div>
-        )}
-      </div>
-    </motion.aside>
-  )
-})
-
-/**
- * 只订阅播放进度的叶子组件：进度约 4Hz 更新，放在这里可以避免整个 NowPlaying 重渲染。
- */
 function NowPlayingProgress({ trackDuration }: { trackDuration: number }) {
   const { progress, duration: liveDuration, setProgress } = usePlayerProgress()
   const duration = liveDuration || trackDuration
@@ -1040,26 +775,6 @@ function RoundIcon({ children, active, onClick, title, className = '' }: { child
 
 function Centered({ children }: { children: ReactNode }) {
   return <div className="lyrics-centered">{children}</div>
-}
-
-function formatCount(n: number): string {
-  if (!Number.isFinite(n) || n <= 0) return '0'
-  if (n >= 10000) return `${(n / 10000).toFixed(n >= 100000 ? 0 : 1)}万`
-  return n.toString()
-}
-
-function formatCommentTime(seconds: number): string {
-  if (!seconds) return ''
-  const date = new Date(seconds * 1000)
-  const now = Date.now()
-  const diff = Math.max(0, now - date.getTime())
-  const minute = 60 * 1000
-  const hour = 60 * minute
-  const day = 24 * hour
-  if (diff < hour) return `${Math.max(1, Math.floor(diff / minute))}分钟前`
-  if (diff < day) return `${Math.floor(diff / hour)}小时前`
-  if (diff < 7 * day) return `${Math.floor(diff / day)}天前`
-  return date.toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' })
 }
 
 function formatTime(seconds: number): string {
