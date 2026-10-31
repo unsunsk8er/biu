@@ -74,3 +74,14 @@ platform/HarmonyOSPhone/entry/build/
 /parts*.json
 /settings-now.json
 /now-comments.json
+
+# Archived platform generated outputs (archive/legacy is source-only)
+archive/legacy/android/.gradle/
+archive/legacy/android/**/build/
+archive/legacy/android/local.properties
+archive/legacy/android/app/src/main/assets/www/
+archive/legacy/platform-HarmonyOS/.hvigor/
+archive/legacy/platform-HarmonyOS/**/build/
+archive/legacy/platform-HarmonyOS/**/oh_modules/
+archive/legacy/platform-HarmonyOS/**/node_modules/
+archive/legacy/platform-HarmonyOS/local.properties

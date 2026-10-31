@@ -11,6 +11,7 @@ export default [
       'release/**',
       'node_modules/**',
       'platform/**',
+      'archive/**',
       'android/**',
       '.android-tools/**',
       'scripts/smoke/out/**',

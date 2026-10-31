@@ -2,7 +2,7 @@
   "name": "biu",
   "private": true,
   "version": "2.0.0",
-  "description": "biu - 基于 Bilibili 的桌面音乐播放器",
+  "description": "biu - 基于 Bilibili 的鸿蒙手机音乐播放器",
   "author": "Hanversion",
   "license": "MIT",
   "repository": {
@@ -14,45 +14,29 @@
     "node": ">=22.12.0"
   },
   "type": "module",
-  "main": "dist-electron/main.js",
   "scripts": {
     "dev": "vite",
-    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.electron.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
     "verify": "node scripts/verify.mjs",
     "lint": "eslint . --max-warnings 40",
     "test": "vitest run",
     "test:watch": "vitest",
     "check": "npm run typecheck && npm run verify && npm run lint && npm run test",
-    "smoke": "electron scripts/smoke",
-    "smoke:harmony": "node scripts/smoke-harmony-device.mjs",
-    "smoke:android": "node scripts/smoke-android-device.mjs",
-    "e2e:harmony": "node scripts/e2e-harmony-playback.mjs",
-    "build": "vite build && npm run copy-preload",
+    "build": "vite build",
     "preview": "vite preview",
-    "copy-preload": "node -e \"const fs=require('fs');for(const f of ['preload.cjs','tray-preload.cjs'])fs.cpSync('electron/'+f,'dist-electron/'+f);fs.cpSync('electron/icon.png','dist-electron/icon.png');if(fs.existsSync('electron/tray.png'))fs.cpSync('electron/tray.png','dist-electron/tray.png')\"",
-    "electron:dev": "vite",
-    "electron:start": "npm run build && electron .",
-    "electron:build": "npm run build && electron-builder",
-    "build:appimage": "npm run build && electron-builder --linux AppImage --x64 --publish never",
-    "harmony:prepare": "npm run build && node scripts/prepare-harmony.mjs",
-    "harmony:build": "npm run harmony:prepare && node scripts/build-harmony.mjs",
+    "smoke:harmony": "node scripts/smoke-harmony-device.mjs",
+    "e2e:harmony": "node scripts/e2e-harmony-playback.mjs",
     "harmony:phone:prepare": "node scripts/build-harmony-web.mjs && node scripts/prepare-harmony-phone.mjs",
     "harmony:phone:build": "npm run harmony:phone:prepare && node scripts/build-harmony-phone.mjs",
-    "harmony:phone:release": "npm run harmony:phone:prepare && node scripts/build-harmony-phone.mjs release",
-    "android:prepare": "node scripts/prepare-android.mjs",
-    "android:build": "npm run android:prepare && node scripts/build-android.mjs assembleDebug",
-    "android:release": "npm run android:prepare && node scripts/build-android.mjs assembleRelease"
+    "harmony:phone:release": "npm run harmony:phone:prepare && node scripts/build-harmony-phone.mjs release"
   },
+  "dependencies": {},
   "devDependencies": {
-    "@electron/asar": "^3.4.1",
     "@eslint/js": "^10.0.1",
     "@tailwindcss/vite": "^4.1.0",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
     "@vitejs/plugin-react": "^4.5.0",
-    "concurrently": "^9.1.0",
-    "electron": "^45.1.0",
-    "electron-builder": "^26.18.0",
     "eslint": "^10.13.0",
     "framer-motion": "^12.12.0",
     "globals": "^17.13.0",
@@ -66,90 +50,7 @@
     "typescript": "~5.8.0",
     "typescript-eslint": "^8.72.1",
     "vite": "^6.3.0",
-    "vite-plugin-electron": "^0.29.1",
-    "vite-plugin-electron-renderer": "^0.14.7",
     "vite-plugin-singlefile": "^2.3.4",
-    "vitest": "^5.0.5",
-    "wait-on": "^8.0.0"
-  },
-  "build": {
-    "appId": "com.unsunsk8er.biu",
-    "productName": "biu",
-    "copyright": "Copyright © 2026 Hanversion",
-    "directories": {
-      "output": "release"
-    },
-    "files": [
-      "dist/**/*",
-      "dist-electron/**/*",
-      "LICENSE",
-      "NOTICE"
-    ],
-    "publish": [
-      {
-        "provider": "github",
-        "owner": "unsunsk8er",
-        "repo": "biu"
-      }
-    ],
-    "win": {
-      "target": "nsis",
-      "icon": "electron/icon.png"
-    },
-    "nsis": {
-      "oneClick": false,
-      "perMachine": false,
-      "allowElevation": true,
-      "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true,
-      "shortcutName": "biu",
-      "runAfterFinish": true,
-      "deleteAppDataOnUninstall": false,
-      "uninstallDisplayName": "biu ${version}",
-      "artifactName": "${productName}-Setup-${version}-${arch}.${ext}"
-    },
-    "mac": {
-      "target": [
-        "dmg",
-        "zip"
-      ],
-      "icon": "electron/icon.png",
-      "category": "public.app-category.music",
-      "hardenedRuntime": true,
-      "gatekeeperAssess": false,
-      "artifactName": "${productName}-${version}-${arch}.${ext}"
-    },
-    "dmg": {
-      "title": "${productName} ${version}"
-    },
-    "linux": {
-      "target": [
-        "AppImage",
-        "deb"
-      ],
-      "icon": "build/icons",
-      "category": "AudioVideo",
-      "maintainer": "Hanversion <hanversion@gmail.com>",
-      "synopsis": "biu - 基于 Bilibili 的桌面音乐播放器",
-      "artifactName": "${productName}-${version}-${arch}.${ext}",
-      "desktop": {
-        "entry": {
-          "Name": "biu",
-          "Comment": "基于 Bilibili 的桌面音乐播放器",
-          "Categories": "AudioVideo;Audio;Player;",
-          "Keywords": "music;audio;bilibili;biu;biu;",
-          "StartupWMClass": "biu",
-          "Terminal": "false"
-        }
-      }
-    }
-  },
-  "dependencies": {
-    "electron-updater": "^6.8.11"
-  },
-  "allowScripts": {
-    "esbuild@0.25.12": true,
-    "electron-winstaller@5.4.0": true
+    "vitest": "^5.0.5"
   }
 }

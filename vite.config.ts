@@ -1,9 +1,7 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
-import electron from 'vite-plugin-electron'
 import { viteSingleFile } from 'vite-plugin-singlefile'
-import { builtinModules } from 'module'
 import path from 'path'
 
 const harmonyBuild = process.env.BIU_HARMONY === '1'
@@ -35,31 +33,10 @@ const cspPlugin = {
   },
 }
 
-// 主进程需外部化的运行时依赖：含动态 require / 读取自身资源，不能被 esbuild 打进 main.js。
-const electronExternals = [
-  'electron',
-  'electron-updater',
-  ...builtinModules,
-  ...builtinModules.map((m) => `node:${m}`),
-]
-
-const electronPlugin = electron([
-  {
-    entry: 'electron/main.ts',
-    vite: {
-      build: {
-        rollupOptions: {
-          external: electronExternals,
-        },
-      },
-    },
-  },
-])
-
 export default defineConfig({
   plugins: harmonyBuild
     ? [react(), tailwindcss(), cspPlugin, viteSingleFile()]
-    : [react(), tailwindcss(), cspPlugin, electronPlugin],
+    : [react(), tailwindcss(), cspPlugin],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
