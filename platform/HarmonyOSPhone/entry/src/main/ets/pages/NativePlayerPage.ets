@@ -61,7 +61,7 @@ export struct NativePlayerPage {
     this.resetForLoad()
     // Prop updates for localTitle/localArtist may land in the same frame as
     // localPath; read them on the next tick so the header is not blank.
-    window.setTimeout(() => {
+    setTimeout(() => {
       this.title = this.localTitle
       this.artist = this.localArtist
       this.cover = this.localCover
