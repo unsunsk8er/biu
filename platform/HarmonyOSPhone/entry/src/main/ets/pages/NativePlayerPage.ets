@@ -1,7 +1,16 @@
 import { common } from '@kit.AbilityKit'
 import { BiuBridge, NativeAudioPayload } from '../common/BiuBridge'
-import { NativeBiliApi, NativeSearchItem } from '../common/NativeBiliApi'
+import { NativeBiliApi } from '../common/NativeBiliApi'
 import { NativeLyricsApi, LyricLine } from '../common/NativeLyricsApi'
+
+export interface NativePlayerState {
+  title: string
+  artist: string
+  cover: string
+  playing: boolean
+  time: number
+  duration: number
+}
 
 function formatTime(seconds: number): string {
   const total = Math.max(0, Math.floor(seconds))
@@ -13,17 +22,11 @@ function formatTime(seconds: number): string {
 @Component
 export struct NativePlayerPage {
   bridge: BiuBridge = new BiuBridge(getContext(this) as common.UIAbilityContext)
-  track: NativeSearchItem = {
-    bvid: '',
-    aid: 0,
-    title: '',
-    author: '',
-    pic: '',
-    duration: '',
-    play: 0,
-  }
+  @Prop @Watch('onBvidChange') bvid: string = ''
+  @Prop visible: boolean = true
   topInset: number = 0
   onClose: () => void = () => {}
+  onState: (state: NativePlayerState) => void = () => {}
 
   @State private title: string = ''
   @State private artist: string = ''
@@ -41,15 +44,29 @@ export struct NativePlayerPage {
   private requestId: string = ''
   private playable: boolean = false
 
+  onBvidChange(): void {
+    if (!this.bvid) return
+    this.bridge.cacheAudioFile(`switch-${Date.now()}`, 'native-audio://stop')
+    this.title = ''
+    this.artist = ''
+    this.cover = ''
+    this.time = 0
+    this.duration = 0
+    this.lyrics = []
+    this.lyricIndex = -1
+    this.playable = false
+    this.loading = true
+    this.error = ''
+    void this.load()
+  }
+
   aboutToAppear(): void {
-    this.title = this.track.title
-    this.artist = this.track.author
-    this.cover = this.track.pic
     this.bridge.setAudioFileListener((requestId: string, path: string) => {
       if (requestId !== this.requestId) return
       if (!path) {
         this.loading = false
         this.error = '音频缓存失败'
+        this.notify()
         return
       }
       this.playable = true
@@ -79,8 +96,20 @@ export struct NativePlayerPage {
         this.playing = false
         this.error = '播放失败'
       }
+      this.notify()
     })
-    void this.load()
+    if (this.bvid) void this.load()
+  }
+
+  private notify(): void {
+    this.onState({
+      title: this.title,
+      artist: this.artist,
+      cover: this.cover,
+      playing: this.playing,
+      time: this.time,
+      duration: this.duration,
+    })
   }
 
   aboutToDisappear(): void {
@@ -89,18 +118,19 @@ export struct NativePlayerPage {
   }
 
   private async load(): Promise<void> {
-    if (!this.track.bvid) {
+    if (!this.bvid) {
       this.loading = false
       this.error = '缺少视频信息'
       return
     }
     try {
       const api = new NativeBiliApi(getContext(this) as common.UIAbilityContext)
-      const info = await api.getVideoInfo(this.track.bvid)
-      this.title = info.title || this.track.title
-      this.artist = info.artist || this.track.author
-      this.cover = info.cover || this.track.pic
+      const info = await api.getVideoInfo(this.bvid)
+      this.title = info.title
+      this.artist = info.artist
+      this.cover = info.cover
       if (info.duration > 0) this.duration = info.duration
+      this.notify()
       const source = await api.getPlayUrl(info.bvid, info.cid)
       this.requestId = `native-player-${Date.now()}`
       this.bridge.cacheAudioFile(
@@ -112,6 +142,7 @@ export struct NativePlayerPage {
     } catch (error) {
       this.loading = false
       this.error = '加载失败，请检查网络'
+      this.notify()
     }
   }
 
@@ -161,7 +192,7 @@ export struct NativePlayerPage {
   }
 
   private close(): void {
-    this.bridge.cacheAudioFile(`player-close-${Date.now()}`, 'native-audio://stop')
+    // Keep the native player alive so the mini player can keep controlling it.
     this.onClose()
   }
 
@@ -319,5 +350,6 @@ export struct NativePlayerPage {
     .height('100%')
     .padding({ left: 24, right: 24, top: this.topInset + 12, bottom: 20 })
     .backgroundColor(this.pageBg())
+    .visibility(this.visible ? Visibility.Visible : Visibility.None)
   }
 }

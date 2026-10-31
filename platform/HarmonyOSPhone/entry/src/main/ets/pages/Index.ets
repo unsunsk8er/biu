@@ -4,7 +4,7 @@ import { window } from '@kit.ArkUI';
 import display from '@ohos.display';
 import { BiuBridge } from '../common/BiuBridge';
 import { NativeSearchItem } from '../common/NativeBiliApi';
-import { NativePlayerPage } from './NativePlayerPage';
+import { NativePlayerPage, NativePlayerState } from './NativePlayerPage';
 import { NativeSearchPage } from './NativeSearchPage';
 import { NativeSettingsPage } from './NativeSettingsPage';
 
@@ -37,10 +37,15 @@ struct Index {
   @State private topInset: number = 0;
   @State private activeTab: string = '/search';
   @State private nativeSearchOpen: boolean = false;
-  @State private nativePlayerOpen: boolean = false;
-  @State private nativeTrack: NativeSearchItem = {
-    bvid: '', aid: 0, title: '', author: '', pic: '', duration: '', play: 0,
-  };
+  @State private miniVisible: boolean = false;
+  @State private miniOpen: boolean = false;
+  @State private currentBvid: string = '';
+  @State private miniTitle: string = '';
+  @State private miniArtist: string = '';
+  @State private miniCover: string = '';
+  @State private miniPlaying: boolean = false;
+  @State private miniTime: number = 0;
+  @State private miniDuration: number = 0;
   @StorageLink('biu-theme') private nativeTheme: string = 'light';
 
   aboutToAppear(): void {
@@ -98,10 +103,7 @@ struct Index {
     .backgroundColor(Color.Transparent)
     .stateEffect(false)
     .onClick(() => {
-      if (this.nativePlayerOpen) {
-        this.bridge.cacheAudioFile(`close-${Date.now()}`, 'native-audio://stop');
-        this.nativePlayerOpen = false;
-      }
+      if (this.miniOpen) this.miniOpen = false;
       if (path === '/search') {
         this.activeTab = path;
         this.nativeSearchOpen = true;
@@ -115,6 +117,52 @@ struct Index {
       if (path === '/settings') return;
       // Other tabs still use the WebView fallback until their native rewrite.
       this.controller.loadUrl(`resource://rawfile/www/index.html#${path}`);
+    })
+  }
+
+  @Builder
+  NativeMiniBar() {
+    Row({ space: 10 }) {
+      Image(this.miniCover)
+        .width(38)
+        .height(38)
+        .borderRadius(9)
+        .objectFit(ImageFit.Cover)
+        .backgroundColor(this.nativeTheme === 'dark' ? '#2C2C2E' : '#E8E8ED')
+      Column({ space: 2 }) {
+        Text(this.miniTitle || '正在播放')
+          .fontSize(13)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(this.nativeTheme === 'dark' ? '#F5F5F7' : '#1C1C1E')
+          .maxLines(1)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+        Text(this.miniArtist)
+          .fontSize(10)
+          .fontColor(this.nativeTheme === 'dark' ? '#9A9AA0' : '#8A8A8E')
+          .maxLines(1)
+      }
+      .alignItems(HorizontalAlign.Start)
+      .layoutWeight(1)
+      Button(this.miniPlaying ? '暂停' : '播放')
+        .height(32)
+        .fontSize(12)
+        .fontColor('#FF5C93')
+        .backgroundColor(this.nativeTheme === 'dark' ? '#2C2C2E' : '#F2F3F5')
+        .borderRadius(16)
+        .stateEffect(false)
+        .onClick(() => {
+          this.bridge.cacheAudioFile(
+            `mini-${Date.now()}`,
+            this.miniPlaying ? 'native-audio://pause' : 'native-audio://resume'
+          )
+        })
+    }
+    .width('100%')
+    .height(58)
+    .padding({ left: 14, right: 14 })
+    .backgroundColor(this.nativeTheme === 'dark' ? '#1C1C1E' : '#FFFFFF')
+    .onClick(() => {
+      this.miniOpen = true;
     })
   }
 
@@ -134,10 +182,9 @@ struct Index {
   }
 
   onBackPress(): boolean {
-    // Native player closes back to the native search results.
-    if (this.nativePlayerOpen) {
-      this.bridge.cacheAudioFile(`back-${Date.now()}`, 'native-audio://stop');
-      this.nativePlayerOpen = false;
+    // Native player collapses into the mini player instead of stopping audio.
+    if (this.miniOpen) {
+      this.miniOpen = false;
       return true;
     }
     // Native search closes back to the Web tab underneath.
@@ -200,27 +247,43 @@ struct Index {
           NativeSearchPage({
             topInset: this.topInset,
             onSelect: (item: NativeSearchItem) => {
-              this.nativeTrack = item;
-              this.nativePlayerOpen = true;
+              this.currentBvid = item.bvid;
+              this.miniTitle = item.title;
+              this.miniArtist = item.author;
+              this.miniCover = item.pic;
+              this.miniVisible = true;
+              this.miniOpen = true;
             },
           })
         }
         if (this.activeTab === '/settings') {
           NativeSettingsPage({ controller: this.controller, topInset: this.topInset })
         }
-        if (this.nativePlayerOpen) {
+        if (this.miniVisible) {
           NativePlayerPage({
             bridge: this.bridge,
-            track: this.nativeTrack,
+            bvid: this.currentBvid,
+            visible: this.miniOpen,
             topInset: this.topInset,
             onClose: () => {
-              this.nativePlayerOpen = false;
+              this.miniOpen = false;
+            },
+            onState: (state: NativePlayerState) => {
+              this.miniTitle = state.title || this.miniTitle;
+              this.miniArtist = state.artist || this.miniArtist;
+              this.miniCover = state.cover || this.miniCover;
+              this.miniPlaying = state.playing;
+              this.miniTime = state.time;
+              this.miniDuration = state.duration;
             },
           })
         }
       }
       .width('100%')
       .layoutWeight(1)
+      if (this.miniVisible && !this.miniOpen) {
+        this.NativeMiniBar()
+      }
       if (this.showNativeTabs) {
         this.NativeTabsBar()
       }
