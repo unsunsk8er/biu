@@ -18,6 +18,11 @@ import { extractAudioProgressive } from '@/services/bilibiliApi'
 import { buildAudioCandidateUrls } from '@/services/playbackFallback'
 import { cacheHarmonyAudio } from '@/services/harmonyAudio'
 
+// The ArkWeb native takeover is kept for future work, but AVPlayer currently
+// rejects the transcoded local MP4 on this device. Disable it so Harmony falls
+// back to the regular streaming path instead of getting stuck on a spinner.
+const HARMONY_NATIVE_AUDIO_ENABLED = false
+
 interface PlayerState {
   currentTrack: Track | null
   isPlaying: boolean
@@ -743,7 +748,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         // HarmonyOS: ArkWeb pauses HTML <audio> when the ability goes to the
         // background. Download + transcode once, then let the native AVPlayer
         // take over the local M4A so playback survives Home.
-        if (isHarmonyApp() && source.audioUrl) {
+        if (HARMONY_NATIVE_AUDIO_ENABLED && isHarmonyApp() && source.audioUrl) {
           try {
             const fileUrl = await cacheHarmonyAudio([source.audioUrl, ...(source.backupUrls || [])], currentTrack!.id)
             await loadSource(fileUrl, 0)
@@ -864,7 +869,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         // Last resort on HarmonyOS: download with a native Referer into the app
         // cache and play the local file. Some CDNs reject the WebView request
         // even though the same URL is valid for this device.
-        if (!loaded && !cancelled && isHarmonyApp() && source.audioUrl) {
+        if (!loaded && !cancelled && HARMONY_NATIVE_AUDIO_ENABLED && isHarmonyApp() && source.audioUrl) {
           try {
             const fileUrl = await cacheHarmonyAudio(source.audioUrl, currentTrack!.id)
             await loadSource(fileUrl, 0)

@@ -3,7 +3,6 @@ import { common } from '@kit.AbilityKit';
 import { window } from '@kit.ArkUI';
 import display from '@ohos.display';
 import { BiuBridge } from '../common/BiuBridge';
-import { NativeAudioPlayer } from '../common/NativeAudioPlayer';
 
 const RESOURCE_METHODS: string[] = [
   'getVersion',
@@ -85,17 +84,6 @@ struct Index {
         .zoomAccess(false)
         .horizontalScrollBarAccess(false)
         .verticalScrollBarAccess(false)
-        .enableNativeMediaPlayer({ enable: true, shouldOverlay: false })
-        .onPageBegin(() => {
-          this.controller.onCreateNativeMediaPlayer(
-            (handler: webview.NativeMediaPlayerHandler, mediaInfo: webview.MediaInfo) => {
-              if (mediaInfo.mediaType === webview.MediaType.AUDIO) {
-                return new NativeAudioPlayer(handler, mediaInfo);
-              }
-              return null;
-            }
-          );
-        })
         .userAgent('Mozilla/5.0 (Linux; Android 15; BiuHarmony 2.0.0) AppleWebKit/537.36 ' +
           '(KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36')
         .javaScriptProxy({

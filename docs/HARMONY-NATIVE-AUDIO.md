@@ -1,5 +1,10 @@
 # HarmonyOS 原生音频播放（AVPlayer + AVTranscoder）
 
+> **当前状态（2026-10-31）**：本机 AVPlayer 对缓存 MP4 的 prepare 仍会失败，
+> 因此运行时代码通过 `HARMONY_NATIVE_AUDIO_ENABLED = false` 暂时关闭原生接管，
+> 回到远端流播放以保证可用性；后台播放能力暂不可用。下面的原生方案代码保留，
+> 待 AVPlayer 兼容性修复后再开启。
+
 ## 问题
 
 ArkWeb 在应用退到后台时会暂停 HTML `<audio>` 的媒体管线：
