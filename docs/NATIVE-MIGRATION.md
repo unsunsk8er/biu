@@ -4,6 +4,15 @@
 
 ## 已完成
 
+### Phase 2：原生搜索页
+
+- `NativeSearchPage.ets`
+- 纯 ArkUI 搜索框、结果列表、封面、时长
+- 直接调用 `NativeBiliApi` 原生搜索
+- 点击结果通过 `window.__biuNativePlay` 交给现有播放器
+- 过渡期仍复用 Web Now Playing / 歌词页，原生播放页下一步替换
+- 真机验证：搜索 `jay` 可返回结果，点击结果进入播放页
+
 ### Phase 1.5：原生数据层
 
 - `NativeBiliApi.ets`

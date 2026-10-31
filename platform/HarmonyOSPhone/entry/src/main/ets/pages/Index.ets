@@ -3,6 +3,7 @@ import { common } from '@kit.AbilityKit';
 import { window } from '@kit.ArkUI';
 import display from '@ohos.display';
 import { BiuBridge } from '../common/BiuBridge';
+import { NativeSearchPage } from './NativeSearchPage';
 import { NativeSettingsPage } from './NativeSettingsPage';
 
 const RESOURCE_METHODS: string[] = [
@@ -33,6 +34,7 @@ struct Index {
   @State private bottomInset: number = 0;
   @State private topInset: number = 0;
   @State private activeTab: string = '/search';
+  @State private nativeSearchOpen: boolean = false;
   @StorageLink('biu-theme') private nativeTheme: string = 'light';
 
   aboutToAppear(): void {
@@ -90,10 +92,16 @@ struct Index {
     .backgroundColor(Color.Transparent)
     .stateEffect(false)
     .onClick(() => {
+      if (path === '/search') {
+        this.activeTab = path;
+        this.nativeSearchOpen = true;
+        return;
+      }
       if (this.activeTab === path) return;
       this.activeTab = path;
-      // Settings is the first fully native page. Keep the WebView alive
-      // underneath so playback UI and audio state are not destroyed.
+      this.nativeSearchOpen = false;
+      // Settings is a fully native page. Keep the WebView alive underneath so
+      // playback UI and audio state are not destroyed.
       if (path === '/settings') return;
       // Other tabs still use the WebView fallback until their native rewrite.
       this.controller.loadUrl(`resource://rawfile/www/index.html#${path}`);
@@ -116,6 +124,11 @@ struct Index {
   }
 
   onBackPress(): boolean {
+    // Native search closes back to the Web tab underneath.
+    if (this.nativeSearchOpen) {
+      this.nativeSearchOpen = false;
+      return true;
+    }
     // The native settings page is a top-level ArkUI layer; back returns to the
     // previously active Web tab instead of exiting the app.
     if (this.activeTab === '/settings') {
@@ -140,7 +153,7 @@ struct Index {
         Web({ src: $rawfile('www/index.html'), controller: this.controller })
           .width('100%')
           .height('100%')
-          .opacity(this.activeTab === '/settings' ? 0 : 1)
+          .opacity(this.activeTab === '/settings' || this.nativeSearchOpen ? 0 : 1)
           .javaScriptAccess(true)
           .domStorageAccess(true)
           .fileAccess(true)
@@ -167,6 +180,16 @@ struct Index {
               "document.documentElement.dataset.biuNativeTabs='true';"
             ).catch(() => {});
           })
+        if (this.nativeSearchOpen) {
+          NativeSearchPage({
+            controller: this.controller,
+            topInset: this.topInset,
+            onPlayed: () => {
+              this.nativeSearchOpen = false;
+              this.activeTab = '/search';
+            },
+          })
+        }
         if (this.activeTab === '/settings') {
           NativeSettingsPage({ controller: this.controller, topInset: this.topInset })
         }

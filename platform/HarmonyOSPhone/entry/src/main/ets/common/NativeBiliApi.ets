@@ -179,6 +179,11 @@ export class NativeBiliApi {
     return `${query}&w_rid=${this.md5(query + mixinKey)}`
   }
 
+  private normalizePic(value: string): string {
+    const pic = String(value || '').replace(/^http:/, 'https:')
+    return pic.startsWith('//') ? `https:${pic}` : pic
+  }
+
   async searchVideo(keyword: string, page: number = 1, pageSize: number = 20): Promise<NativeSearchResult> {
     await this.getWbiKeys()
     const params = new Map<string, string>()
@@ -198,7 +203,7 @@ export class NativeBiliApi {
         aid: Number(item.aid || 0),
         title: String(item.title || '').replace(/<[^>]+>/g, ''),
         author: String(item.author || ''),
-        pic: String(item.pic || '').replace(/^http:/, 'https:'),
+        pic: this.normalizePic(item.pic || ''),
         duration: String(item.duration || ''),
         play: Number(item.play || 0),
       }
