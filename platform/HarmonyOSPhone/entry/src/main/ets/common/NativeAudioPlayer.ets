@@ -51,7 +51,17 @@ export class NativeAudioPlayer implements webview.NativeMediaPlayerBridge {
         this.sourceFile = fileIo.openSync(path, fileIo.OpenMode.READ_ONLY);
         player.url = `fd://${this.sourceFile.fd}`;
       } else {
-        player.url = this.source;
+        // Bilibili CDN requires desktop Referer/UA. AVPlayer's plain url path
+        // cannot attach headers, so build a MediaSource with them.
+        const source = media.createMediaSourceWithUrl(this.source, {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ' +
+            '(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+          'Referer': 'https://www.bilibili.com/',
+          'Origin': 'https://www.bilibili.com'
+        });
+        player.setMediaSource(source).catch((error: BusinessError) => {
+          this.fail(error);
+        });
       }
     } catch (error) {
       this.fail(error);
@@ -140,19 +150,19 @@ export class NativeAudioPlayer implements webview.NativeMediaPlayerBridge {
 
   setVolume(volume: number): void {
     this.pendingVolume = Math.max(0, Math.min(1, volume));
-    this.player?.setVolume(this.pendingMuted ? 0 : this.pendingVolume);
+    if (this.prepared) this.player?.setVolume(this.pendingMuted ? 0 : this.pendingVolume);
     this.handler.handleVolumeChanged(this.pendingVolume);
   }
 
   setMuted(muted: boolean): void {
     this.pendingMuted = muted;
-    this.player?.setVolume(muted ? 0 : this.pendingVolume);
+    if (this.prepared) this.player?.setVolume(muted ? 0 : this.pendingVolume);
     this.handler.handleMutedChanged(muted);
   }
 
   setPlaybackRate(playbackRate: number): void {
     this.pendingRate = playbackRate;
-    if (this.player) this.player.setSpeed(this.speedFor(playbackRate));
+    if (this.prepared) this.player?.setSpeed(this.speedFor(playbackRate));
     this.handler.handlePlaybackRateChanged(playbackRate);
   }
 

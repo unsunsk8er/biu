@@ -22,6 +22,7 @@ import { cacheHarmonyAudio } from '@/services/harmonyAudio'
 // rejects the transcoded local MP4 on this device. Disable it so Harmony falls
 // back to the regular streaming path instead of getting stuck on a spinner.
 const HARMONY_NATIVE_AUDIO_ENABLED = false
+const HARMONY_NATIVE_CACHE_ENABLED = false
 
 interface PlayerState {
   currentTrack: Track | null
@@ -745,10 +746,43 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         let loaded = false
         let lastError: unknown = null
 
+        // HarmonyOS native AVPlayer handles a progressive MP4 network stream
+        // reliably (with Referer via MediaSource); prefer it over a local
+        // transcode when the native takeover is enabled.
+        if (HARMONY_NATIVE_AUDIO_ENABLED && isHarmonyApp() && currentTrack?.cid) {
+          try {
+            const progressive = await extractAudioProgressive(
+              currentTrack.bvid || currentTrack.id,
+              Number(currentTrack.cid),
+              {
+                aid: currentTrack.aid,
+                title: currentTrack.title,
+                artist: currentTrack.artist,
+                coverUrl: currentTrack.coverUrl,
+                duration: currentTrack.duration,
+              },
+            )
+            for (const [attempt, url] of candidateUrls(progressive).slice(0, 6).entries()) {
+              if (cancelled) return
+              try {
+                await loadSource(url, attempt)
+                if (cancelled) return
+                loaded = true
+                source = progressive
+                break
+              } catch (err) {
+                lastError = err
+              }
+            }
+          } catch (err) {
+            lastError = err
+          }
+        }
+
         // HarmonyOS: ArkWeb pauses HTML <audio> when the ability goes to the
         // background. Download + transcode once, then let the native AVPlayer
         // take over the local M4A so playback survives Home.
-        if (HARMONY_NATIVE_AUDIO_ENABLED && isHarmonyApp() && source.audioUrl) {
+        if (HARMONY_NATIVE_CACHE_ENABLED && isHarmonyApp() && source.audioUrl) {
           try {
             const fileUrl = await cacheHarmonyAudio([source.audioUrl, ...(source.backupUrls || [])], currentTrack!.id)
             await loadSource(fileUrl, 0)
@@ -869,7 +903,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         // Last resort on HarmonyOS: download with a native Referer into the app
         // cache and play the local file. Some CDNs reject the WebView request
         // even though the same URL is valid for this device.
-        if (!loaded && !cancelled && HARMONY_NATIVE_AUDIO_ENABLED && isHarmonyApp() && source.audioUrl) {
+        if (!loaded && !cancelled && HARMONY_NATIVE_CACHE_ENABLED && isHarmonyApp() && source.audioUrl) {
           try {
             const fileUrl = await cacheHarmonyAudio(source.audioUrl, currentTrack!.id)
             await loadSource(fileUrl, 0)
