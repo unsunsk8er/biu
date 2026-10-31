@@ -28,9 +28,15 @@ const RESOURCE_PERMISSION = '{"javascriptProxyPermission":{"urlPermissionList":[
 struct Index {
   private controller: webview.WebviewController = new webview.WebviewController();
   private bridge: BiuBridge = new BiuBridge(getContext(this) as common.UIAbilityContext);
+  @State private showNativeTabs: boolean = true;
+  @State private bottomInset: number = 0;
+  @State private activeTab: string = '/search';
 
   aboutToAppear(): void {
     this.bridge.setController(this.controller);
+    this.bridge.setAtRootListener((atRoot: boolean) => {
+      this.showNativeTabs = atRoot;
+    });
     window.getLastWindow(getContext(this)).then((mainWindow: window.Window) => {
       mainWindow.on('avoidAreaChange', () => {
         this.injectInsets();
@@ -51,6 +57,7 @@ struct Index {
       const indicatorArea = mainWindow.getWindowAvoidArea(window.AvoidAreaType.TYPE_NAVIGATION_INDICATOR);
       const top = Math.max(systemArea.topRect.height, 0) / density;
       const bottom = Math.max(systemArea.bottomRect.height, indicatorArea.bottomRect.height, 0) / density;
+      this.bottomInset = bottom;
       const script =
         `document.documentElement.style.setProperty('--biu-inset-top','${top}px');` +
         `document.documentElement.style.setProperty('--biu-inset-bottom','${bottom}px');`;
@@ -58,6 +65,47 @@ struct Index {
     } catch (error) {
       // The Web may not be attached yet; onPageEnd retries.
     }
+  }
+
+  /**
+   * Native touch targets over the Web tab bar. ArkWeb on this device does not
+   * reliably deliver taps to the bottom links, so these transparent native
+   * buttons own the gesture and drive the hash router directly.
+   */
+  @Builder
+  NativeTabButton(path: string, label: string) {
+    Button() {
+      Text(label)
+        .fontSize(11)
+        .fontWeight(this.activeTab === path ? FontWeight.Bold : FontWeight.Normal)
+        .fontColor(this.activeTab === path ? '#FF5C93' : '#8A8A8E')
+    }
+    .layoutWeight(1)
+    .height(56)
+    .backgroundColor(Color.Transparent)
+    .stateEffect(false)
+    .onClick(() => {
+      this.activeTab = path;
+      // HashRouter's history listener is not receiving native route calls on
+      // this device. Reloading the rawfile entry with the target hash is the
+      // only deterministic way to switch pages from ArkUI.
+      this.controller.loadUrl(`resource://rawfile/www/index.html#${path}`);
+    })
+  }
+
+  @Builder
+  NativeTabsBar() {
+    Row() {
+      this.NativeTabButton('/search', '搜索')
+      this.NativeTabButton('/playlists', '歌单')
+      this.NativeTabButton('/downloads', '下载')
+      this.NativeTabButton('/settings', '设置')
+    }
+    .width('100%')
+    .height(56 + this.bottomInset)
+    .padding({ bottom: this.bottomInset })
+    .alignItems(VerticalAlign.Top)
+    .backgroundColor('#F7F8FA')
   }
 
   onBackPress(): boolean {
@@ -75,6 +123,7 @@ struct Index {
   build() {
     Column() {
       Web({ src: $rawfile('www/index.html'), controller: this.controller })
+        .layoutWeight(1)
         .javaScriptAccess(true)
         .domStorageAccess(true)
         .fileAccess(true)
@@ -97,7 +146,13 @@ struct Index {
         .onPageEnd(() => {
           this.bridge.setController(this.controller);
           this.injectInsets();
+          this.controller.runJavaScript(
+            "document.documentElement.dataset.biuNativeTabs='true';"
+          ).catch(() => {});
         })
+      if (this.showNativeTabs) {
+        this.NativeTabsBar()
+      }
     }
     .width('100%')
     .height('100%')

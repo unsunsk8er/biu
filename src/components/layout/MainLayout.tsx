@@ -74,6 +74,21 @@ export default function MainLayout() {
     contentRef.current?.scrollTo({ top: 0, behavior: 'auto' })
   }, [pathname])
 
+  // Native ArkUI bottom tabs drive the router directly. ArkWeb's
+  // location.hash assignment does not reliably reach HashRouter's history
+  // listener, so the native bar calls into this function instead.
+  useEffect(() => {
+    const bridgeWindow = window as unknown as {
+      __biuNavigate?: (path: string) => void
+    }
+    bridgeWindow.__biuNavigate = (path: string) => {
+      window.setTimeout(() => navigate(path), 0)
+    }
+    return () => {
+      if (bridgeWindow.__biuNavigate) delete bridgeWindow.__biuNavigate
+    }
+  }, [navigate])
+
   // Android/卓易通 edge-back is delivered to Activity.onBackPressed, which
   // delegates here. Resolve in-app layers first; only the four main tabs send
   // the task to the background, keeping the WebView/audio process alive.

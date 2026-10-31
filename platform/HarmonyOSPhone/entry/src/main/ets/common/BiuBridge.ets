@@ -28,6 +28,7 @@ export class BiuBridge {
   private lyricText: string = '';
   private currentLyric: string = '';
   private allowSystemBack: boolean = false;
+  private atRootListener?: (atRoot: boolean) => void;
   private nativePlayer?: media.AVPlayer;
   private nativeFile?: fileIo.File;
   private nativeRequestId: string = '';
@@ -61,8 +62,13 @@ export class BiuBridge {
     this.context.terminateSelf();
   }
 
+  setAtRootListener(listener: (atRoot: boolean) => void): void {
+    this.atRootListener = listener;
+  }
+
   setBackMode(allowSystemBack: boolean): void {
     this.allowSystemBack = allowSystemBack;
+    if (this.atRootListener) this.atRootListener(allowSystemBack);
   }
 
   shouldUseSystemBack(): boolean {

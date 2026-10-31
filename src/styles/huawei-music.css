@@ -2807,6 +2807,10 @@ html[data-biu-mobile] .am-playlist-grid {
   isolation: isolate;
 }
 
+html[data-biu-native-tabs] .mobile-tabbar {
+  display: none !important;
+}
+
 .mobile-tabbar__item {
   position: relative;
   z-index: 1;
