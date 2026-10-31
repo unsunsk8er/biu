@@ -2793,6 +2793,7 @@ html[data-biu-mobile] .am-playlist-grid {
 
 /* Mobile tab bar */
 .mobile-tabbar {
+  position: relative;
   flex: 0 0 auto;
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -2801,10 +2802,14 @@ html[data-biu-mobile] .am-playlist-grid {
   border-top: 1px solid var(--color-border);
   background: color-mix(in srgb, var(--color-background) 94%, transparent);
   color: var(--color-muted-foreground);
-  z-index: 80;
+  z-index: 200;
+  pointer-events: auto;
+  isolation: isolate;
 }
 
 .mobile-tabbar__item {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
