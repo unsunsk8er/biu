@@ -76,10 +76,10 @@ AGC release 证书/Profile 已生成并完成签名验证。用于邀请测试/�
 
 ```text
 release/biu-2.0.0-harmony-phone-appgallery.app
-SHA-256: 32bbd89b1e7b71c483d4d78cd6b71aad580a25d87e63f471ae41093e1da07f9d
+SHA-256: a3a0e5b1703f85dd940236b7d4404e7b74ae7731f0c4c4c548fdf62a1b73f6da
 
 release/biu-2.0.0-harmony-phone-appgallery.hap
-SHA-256: 29e63dc415351837bbda057f0c6e349cc07c73220551ee34f90f34cdca1d5ae7
+SHA-256: ec00cd14525ad133172f01a7102b021e17286c5de52a0f592f2118502f36e386
 ```
 
 - `.app` 内层 HAP 与外层 APP 均已用 AGC release 证书签名并通过 `hap-sign-tool verify-app`。

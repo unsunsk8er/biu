@@ -34,8 +34,8 @@ D:\biu-signing-backup\biu-harmony-release-2026-10-31\
 
 | 包 | 路径 | SHA-256 |
 | --- | --- | --- |
-| APP（优先） | `release/biu-2.0.0-harmony-phone-appgallery.app` | `32bbd89b1e7b71c483d4d78cd6b71aad580a25d87e63f471ae41093e1da07f9d` |
-| HAP（备选） | `release/biu-2.0.0-harmony-phone-appgallery.hap` | `29e63dc415351837bbda057f0c6e349cc07c73220551ee34f90f34cdca1d5ae7` |
+| APP（优先） | `release/biu-2.0.0-harmony-phone-appgallery.app` | `a3a0e5b1703f85dd940236b7d4404e7b74ae7731f0c4c4c548fdf62a1b73f6da` |
+| HAP（备选） | `release/biu-2.0.0-harmony-phone-appgallery.hap` | `ec00cd14525ad133172f01a7102b021e17286c5de52a0f592f2118502f36e386` |
 
 验证结果：
 
