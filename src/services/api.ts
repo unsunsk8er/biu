@@ -161,8 +161,15 @@ export async function getVideoComments(
 
   const data = await rendererComments(oid, cursor, pageSize)
   const replies = data.replies || []
-  const nextOffset = data.cursor?.pagination_reply?.next_offset || data.nextOffset || ''
   const total = data.cursor?.all_count || data.page?.count || replies.length
+  const apiNextOffset = data.cursor?.pagination_reply?.next_offset || data.nextOffset || ''
+  // Older/hot-only replies can report a positive total without a cursor. Use
+  // the public reply/main fallback for the next page instead of silently
+  // hiding the load-more button.
+  const fallbackNextOffset = !apiNextOffset && data.hasMore === undefined && replies.length > 0 && total > replies.length
+    ? 'main:2'
+    : ''
+  const nextOffset = apiNextOffset || fallbackNextOffset
   return {
     items: replies.map((reply) => ({
       id: reply.rpid,
@@ -175,7 +182,7 @@ export async function getVideoComments(
     })),
     total,
     nextOffset,
-    hasMore: data.hasMore ?? Boolean(data.cursor && !data.cursor.is_end && nextOffset && replies.length > 0),
+    hasMore: data.hasMore ?? Boolean((data.cursor && !data.cursor.is_end && nextOffset && replies.length > 0) || fallbackNextOffset),
   }
 }
 
