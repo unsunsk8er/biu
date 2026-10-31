@@ -26,6 +26,7 @@ struct Index {
   @State private nativeDownloadsOpen: boolean = false;
   @State private queueOpen: boolean = false;
   @State private loginOpen: boolean = false;
+  @State private loginVersion: number = 0;
   @State private miniVisible: boolean = false;
   @State private miniOpen: boolean = false;
   @State private currentBvid: string = '';
@@ -296,6 +297,7 @@ struct Index {
         if (this.activeTab === '/settings') {
           NativeSettingsPage({
             topInset: this.topInset,
+            refreshToken: this.loginVersion,
             onLogin: () => {
               this.loginOpen = true;
             },
@@ -387,6 +389,7 @@ struct Index {
               this.loginOpen = false;
             },
             onSuccess: () => {
+              this.loginVersion += 1;
               this.loginOpen = false;
             },
           })

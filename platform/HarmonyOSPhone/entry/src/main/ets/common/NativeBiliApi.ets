@@ -43,6 +43,13 @@ export interface NativeAudioSource {
   backups: string[]
 }
 
+export interface NativeUser {
+  isLogin: boolean
+  mid: number
+  uname: string
+  face: string
+}
+
 interface BiliPage {
   cid?: number
   page?: number
@@ -122,6 +129,10 @@ interface BiliSearchResponse {
 }
 
 interface BiliNavData {
+  isLogin?: boolean
+  mid?: number
+  uname?: string
+  face?: string
   wbi_img?: BiliWbiImage
 }
 
@@ -178,6 +189,35 @@ export class NativeBiliApi {
       pref.flush()
     } catch (error) {
       // Login persistence failure is reported by the caller.
+    }
+  }
+
+  clearCookie(): void {
+    try {
+      const pref = this.getPref()
+      if (!pref) return
+      pref.deleteSync('cookies')
+      pref.flush()
+    } catch (error) {
+      // ignore
+    }
+  }
+
+  async getNavInfo(): Promise<NativeUser> {
+    try {
+      const text = await this.get(`${BILI_API}/x/web-interface/nav`)
+      const json = JSON.parse(text) as BiliNavResponse
+      if (json.code !== 0 || !json.data) {
+        return { isLogin: false, mid: 0, uname: '', face: '' }
+      }
+      return {
+        isLogin: json.data.isLogin === true,
+        mid: Number(json.data.mid || 0),
+        uname: String(json.data.uname || ''),
+        face: String(json.data.face || ''),
+      }
+    } catch (error) {
+      return { isLogin: false, mid: 0, uname: '', face: '' }
     }
   }
 

@@ -1,4 +1,6 @@
+import { common } from '@kit.AbilityKit'
 import { preferences } from '@kit.ArkData'
+import { NativeBiliApi } from '../common/NativeBiliApi'
 
 type ThemeMode = 'light' | 'dark'
 type PlayQuality = '标准' | '高品质' | '无损'
@@ -26,12 +28,34 @@ const DEFAULTS: NativeSettings = {
 export struct NativeSettingsPage {
   topInset: number = 0
   onLogin: () => void = () => {}
+  @Prop @Watch('loadAccount') refreshToken: number = 0
 
   @State private settings: NativeSettings = DEFAULTS
+  @State private isLogin: boolean = false
+  @State private uname: string = ''
   private pref?: preferences.Preferences
 
   aboutToAppear(): void {
     this.loadNative()
+    this.loadAccount()
+  }
+
+  async loadAccount(): Promise<void> {
+    try {
+      const api = new NativeBiliApi(getContext(this) as common.UIAbilityContext)
+      const user = await api.getNavInfo()
+      this.isLogin = user.isLogin
+      this.uname = user.uname
+    } catch (error) {
+      this.isLogin = false
+      this.uname = ''
+    }
+  }
+
+  private logout(): void {
+    new NativeBiliApi(getContext(this) as common.UIAbilityContext).clearCookie()
+    this.isLogin = false
+    this.uname = ''
   }
 
   private getPref(): preferences.Preferences | undefined {
@@ -171,18 +195,26 @@ export struct NativeSettingsPage {
           Row() {
             Column({ space: 3 }) {
               Text('B 站账号').fontSize(14).fontColor(this.textColor())
-              Text('扫码登录后可同步收藏夹与获取更高音质').fontSize(11).fontColor(this.mutedColor())
+              Text(this.isLogin ? `已登录：${this.uname || 'B 站账号'}` : '扫码登录后可同步收藏夹与获取更高音质')
+                .fontSize(11)
+                .fontColor(this.isLogin ? '#FF5C93' : this.mutedColor())
             }
             .alignItems(HorizontalAlign.Start)
             .layoutWeight(1)
-            Button('扫码登录')
+            Button(this.isLogin ? '退出登录' : '扫码登录')
               .height(34)
               .fontSize(12)
-              .fontColor('#FFFFFF')
-              .backgroundColor('#FF5C93')
+              .fontColor(this.isLogin ? this.mutedColor() : '#FFFFFF')
+              .backgroundColor(this.isLogin ? (this.settings.theme === 'dark' ? '#2C2C2E' : '#F2F3F5') : '#FF5C93')
               .borderRadius(17)
               .stateEffect(false)
-              .onClick(() => this.onLogin())
+              .onClick(() => {
+                if (this.isLogin) {
+                  this.logout()
+                } else {
+                  this.onLogin()
+                }
+              })
           }
           .width('100%')
           .padding(14)
