@@ -62,7 +62,7 @@ release/biu-2.0.0-harmony-phone-release.hap   # release 模式 + debug 签名
 
 ```text
 release/biu-2.0.0-harmony-phone.hap
-SHA-256: f261d81257051ffd5c4eea93edb5f00ccd0e2f9849e9418f8ed81148ac2af2b0
+SHA-256: 41933329c4076b78ed03c5d167476012929b2fb10c9f0d3303079758c837166f
 
 release/biu-2.0.0-harmony-phone-release.hap
 SHA-256: 34ce37272770f967adb6794fc85721fd40e9f7da6aa3da985667c7f0e754ad91

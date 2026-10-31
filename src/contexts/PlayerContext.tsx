@@ -20,6 +20,7 @@ import { cacheHarmonyAudio } from '@/services/harmonyAudio'
 import {
   harmonyPlay,
   harmonyPause,
+  harmonyResume,
   harmonySeek,
   harmonySetVolume,
   harmonyStop,
@@ -253,6 +254,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const lastHiddenAtRef = useRef(0)
   const backgroundRecoveryRef = useRef(false)
   const nativeReloadRef = useRef<() => boolean>(() => false)
+  const harmonyReadyRef = useRef(false)
 
   const showToast = useCallback((msg: string) => {
     setToast(msg)
@@ -1006,28 +1008,34 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     }
     const track = currentTrack
     let cancelled = false
+    harmonyReadyRef.current = false
     const startProgress = progressRef.current > 0 ? progressRef.current : 0
     setLoadingAudio(true)
     setIsPlaying(true)
     setHarmonyPlayerHandler(event => {
       if (cancelled) return
       if (event.type === 'playing') {
+        harmonyReadyRef.current = true
         setLoadingAudio(false)
         setIsPlaying(true)
       } else if (event.type === 'paused') {
         setLoadingAudio(false)
         setIsPlaying(false)
       } else if (event.type === 'time') {
+        harmonyReadyRef.current = true
         setProgress(event.time)
         if (event.duration > 0) setDuration(event.duration)
         setLoadingAudio(false)
       } else if (event.type === 'duration') {
+        harmonyReadyRef.current = true
         if (event.duration > 0) setDuration(event.duration)
         setLoadingAudio(false)
       } else if (event.type === 'ended') {
+        harmonyReadyRef.current = false
         setIsPlaying(false)
         handleTrackEnd()
       } else if (event.type === 'error') {
+        harmonyReadyRef.current = false
         setLoadingAudio(false)
         setIsPlaying(false)
         showToast('音频播放失败，点播放重试')
@@ -1061,6 +1069,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
     return () => {
       cancelled = true
+      harmonyReadyRef.current = false
       setHarmonyPlayerHandler(null)
       harmonyStop()
     }
@@ -1120,6 +1129,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       if (loadingAudioRef.current || loadingAudio) {
         shouldAutoplayRef.current = false
         cancelLoading()
+        harmonyReadyRef.current = false
         harmonyStop()
         setLoadingAudio(false)
         setIsPlaying(false)
@@ -1133,6 +1143,15 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         return
       }
       shouldAutoplayRef.current = true
+      if (harmonyReadyRef.current) {
+        // The native player still holds the paused track. Resume in place;
+        // rebuilding it would audibly restart from 0 before the seek.
+        pausedAtRef.current = 0
+        setLoadingAudio(false)
+        setIsPlaying(true)
+        harmonyResume()
+        return
+      }
       setLoadingAudio(true)
       setIsPlaying(true)
       setReloadToken(token => token + 1)
