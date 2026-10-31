@@ -398,6 +398,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     let timer: ReturnType<typeof setTimeout> | undefined
     const syncAfterResume = () => {
       if (document.visibilityState === 'hidden') return
+      // HarmonyOS native playback is independent of the placeholder HTMLAudio.
+      // The old readyState/error recovery here would force a needless reload
+      // (and audible stutter) every time the app returns to the foreground.
+      if (HARMONY_NATIVE_AUDIO_ENABLED && isHarmonyApp()) return
       const audio = audioRef.current
       if (!audio || !currentTrackRef.current) return
       const hiddenFor = lastHiddenAtRef.current > 0 ? Date.now() - lastHiddenAtRef.current : 0
