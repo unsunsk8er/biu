@@ -11,8 +11,8 @@ interface CoverQuery {
   artist: string
 }
 
-const REQUEST_TIMEOUT = 3000
-const SEARCH_DEADLINE = 3200
+const REQUEST_TIMEOUT = 7000
+const SEARCH_DEADLINE = 8000
 
 function normalizeCover(url: string): string {
   let cover = String(url || '').trim().replace(/^http:/, 'https:')
@@ -231,9 +231,10 @@ export async function searchAndroidCovers(rawQuery: CoverQuery): Promise<CoverCa
   // All three catalogues run in parallel. Return as soon as one provider has a
   // high-confidence match instead of waiting for the slowest provider; the
   // hard deadline also keeps a stalled request from blocking playback UI.
-  return new Promise<CoverCandidate[]>((resolve) => {
+  return new Promise<CoverCandidate[]>((resolve, reject) => {
     const candidates: CoverCandidate[] = []
     let settled = 0
+    let failed = 0
     let finished = false
     const tasks = [neteaseSearch(query), qqSearch(query), kugouSearch(query), itunesSearch(query)]
 
@@ -241,6 +242,10 @@ export async function searchAndroidCovers(rawQuery: CoverQuery): Promise<CoverCa
       if (finished) return
       finished = true
       window.clearTimeout(deadline)
+      if (failed === tasks.length) {
+        reject(new Error('All cover providers failed'))
+        return
+      }
       resolve(rankCandidates(candidates, titleOnly ? 40 : 6))
     }
     const deadline = window.setTimeout(finish, SEARCH_DEADLINE)
@@ -254,6 +259,7 @@ export async function searchAndroidCovers(rawQuery: CoverQuery): Promise<CoverCa
         }
       }).catch(() => {
         settled += 1
+        failed += 1
         if (settled === tasks.length) finish()
       })
     })

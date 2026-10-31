@@ -1501,7 +1501,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     if (!settings.autoMatchCover || !currentTrack) return
     // Audio has priority. Do not compete with source loading/playurl requests;
     // only start cover/metadata matching after playback is actually running.
-    if (!isPlaying || loadingAudioRef.current || audioRef.current?.paused) return
+    // Harmony native playback keeps the placeholder HTMLAudio paused forever,
+    // so checking audio.paused here would skip cover matching on HarmonyOS.
+    if (!isPlaying || loadingAudioRef.current) return
     if (currentTrack.metadataMatched) return
     if (coverMatchWasAttempted(currentTrack)) return
     let cancelled = false
@@ -1514,8 +1516,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         if (match) applyMatchedInfo(trackId, match)
         markCoverMatchAttempted(currentTrack)
       }).catch(() => {
-        // Deterministic attempt: a provider failure is not retried automatically.
-        if (!cancelled) markCoverMatchAttempted(currentTrack)
+        // Transient provider/network failure: leave the track unattempted so
+        // the next playback can retry. Only a completed no-match search is
+        // persisted as attempted.
       })
     }, 800)
     return () => {

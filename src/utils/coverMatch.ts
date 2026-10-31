@@ -33,11 +33,11 @@ export interface MatchedCover {
 
 const pending = new Map<string, Promise<MatchedCover | null>>()
 
-// One persisted attempt per track. A failed/offline attempt still counts as
-// "determined"; only the explicit refresh button may retry it. This is kept
-// separately from the positive cover cache so a no-match result is not retried
-// automatically on every playback or app restart.
-const ATTEMPT_KEY = 'biu_cover_match_attempted_v3'
+// One persisted attempt per track. A completed search with no acceptable
+// candidate counts as "determined"; only the explicit refresh button may retry
+// it. Network/provider failures are NOT recorded here, so a temporary outage
+// cannot permanently disable cover matching for that track.
+const ATTEMPT_KEY = 'biu_cover_match_attempted_v4'
 const MAX_ATTEMPTS = 2000
 
 function attemptKey(track: Pick<Track, 'id' | 'title' | 'artist'>): string {
@@ -271,9 +271,6 @@ export async function findMatchedCover(track: Track, force = false): Promise<Mat
       }
       writeCache(next)
       return match
-    } catch {
-      // 网络/第三方曲库错误：不写负缓存，下次仍可重试
-      return null
     } finally {
       pending.delete(key)
     }
