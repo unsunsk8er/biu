@@ -73,15 +73,24 @@ struct Index {
    * buttons own the gesture and drive the hash router directly.
    */
   @Builder
-  NativeTabButton(path: string, label: string) {
+  NativeTabButton(path: string, label: string, icon: Resource) {
     Button() {
-      Text(label)
-        .fontSize(11)
-        .fontWeight(this.activeTab === path ? FontWeight.Bold : FontWeight.Normal)
-        .fontColor(this.activeTab === path ? '#FF5C93' : '#8A8A8E')
+      Column({ space: 2 }) {
+        Image(icon)
+          .width(21)
+          .height(21)
+          .objectFit(ImageFit.Contain)
+          .fillColor(this.activeTab === path ? '#FF5C93' : '#8A8A8E')
+        Text(label)
+          .fontSize(10)
+          .fontWeight(this.activeTab === path ? FontWeight.Medium : FontWeight.Normal)
+          .fontColor(this.activeTab === path ? '#FF5C93' : '#8A8A8E')
+      }
+      .justifyContent(FlexAlign.Center)
     }
     .layoutWeight(1)
     .height(56)
+    .padding(0)
     .backgroundColor(Color.Transparent)
     .stateEffect(false)
     .onClick(() => {
@@ -96,10 +105,10 @@ struct Index {
   @Builder
   NativeTabsBar() {
     Row() {
-      this.NativeTabButton('/search', '搜索')
-      this.NativeTabButton('/playlists', '歌单')
-      this.NativeTabButton('/downloads', '下载')
-      this.NativeTabButton('/settings', '设置')
+      this.NativeTabButton('/search', '搜索', $rawfile('icons/search.svg'))
+      this.NativeTabButton('/playlists', '歌单', $rawfile('icons/playlists.svg'))
+      this.NativeTabButton('/downloads', '下载', $rawfile('icons/downloads.svg'))
+      this.NativeTabButton('/settings', '设置', $rawfile('icons/settings.svg'))
     }
     .width('100%')
     .height(56 + this.bottomInset)
