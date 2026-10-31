@@ -6,8 +6,9 @@ import { image } from '@kit.ImageKit';
 import { fileIo } from '@kit.CoreFileKit';
 import { media } from '@kit.MediaKit';
 import { remuxFastStart, remuxToM4a } from 'libnative_audio.so';
+import { hilog } from '@kit.PerformanceAnalysisKit';
 
-interface NativeAudioPayload {
+export interface NativeAudioPayload {
   time?: number;
   duration?: number;
   message?: string;
@@ -29,6 +30,8 @@ export class BiuBridge {
   private currentLyric: string = '';
   private allowSystemBack: boolean = false;
   private atRootListener?: (atRoot: boolean) => void;
+  private audioFileListener?: (requestId: string, path: string) => void;
+  private nativeEventListener?: (type: string, payload: NativeAudioPayload) => void;
   private nativePlayer?: media.AVPlayer;
   private nativeFile?: fileIo.File;
   private nativeRequestId: string = '';
@@ -64,6 +67,14 @@ export class BiuBridge {
 
   setAtRootListener(listener: (atRoot: boolean) => void): void {
     this.atRootListener = listener;
+  }
+
+  setAudioFileListener(listener: (requestId: string, path: string) => void): void {
+    this.audioFileListener = listener;
+  }
+
+  setNativeAudioListener(listener: (type: string, payload: NativeAudioPayload) => void): void {
+    this.nativeEventListener = listener;
   }
 
   setBackMode(allowSystemBack: boolean): void {
@@ -189,6 +200,7 @@ export class BiuBridge {
   }
 
   private emitNativeEvent(type: string, payload: NativeAudioPayload): void {
+    if (this.nativeEventListener) this.nativeEventListener(type, payload);
     if (!this.controller) return;
     const script =
       `window.__biuNativeAudio && window.__biuNativeAudio(${JSON.stringify(type)}, ${JSON.stringify(JSON.stringify(payload))})`;
@@ -225,6 +237,7 @@ export class BiuBridge {
   }
 
   private async downloadAudioFile(requestId: string, url: string, cacheKey: string): Promise<void> {
+    hilog.info(0x0000, 'BiuCache', `start ${requestId} ${url.slice(0, 120)}`);
     const base = this.cacheBaseName(cacheKey);
     const cachedPath = `${this.context.cacheDir}/${base}.mp4`;
     try {
@@ -243,6 +256,12 @@ export class BiuBridge {
       if (url.indexOf('bilibili') >= 0 || url.indexOf('bilivideo') >= 0) {
         headers['Referer'] = 'https://www.bilibili.com/';
         headers['Origin'] = 'https://www.bilibili.com';
+        try {
+          const cookie = webview.WebCookieManager.fetchCookieSync(url);
+          if (cookie) headers['Cookie'] = cookie;
+        } catch (error) {
+          // Cookie jar may not be initialized yet.
+        }
       }
       const response = await new Promise<http.HttpResponse>((resolve, reject) => {
         http.createHttp().request(url, {
@@ -287,7 +306,7 @@ export class BiuBridge {
       this.pruneAudioCache();
       this.emitAudioFile(requestId, `file://${playable}`);
     } catch (error) {
-      console.error(`[biu-native-cache] failed ${JSON.stringify(error)}`);
+      hilog.error(0x0000, 'BiuCache', `failed ${JSON.stringify(error)}`);
       this.emitAudioFile(requestId, '');
     }
   }
@@ -427,6 +446,7 @@ export class BiuBridge {
   }
 
   private emitAudioFile(requestId: string, path: string): void {
+    if (this.audioFileListener) this.audioFileListener(requestId, path);
     if (!this.controller) return;
     const script =
       `window.__biuAudioFile && window.__biuAudioFile(${JSON.stringify(requestId)}, ${JSON.stringify(path)})`;

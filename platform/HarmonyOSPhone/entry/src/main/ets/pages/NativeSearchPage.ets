@@ -1,20 +1,10 @@
 import { common } from '@kit.AbilityKit'
-import { webview } from '@kit.ArkWeb'
 import { NativeBiliApi, NativeSearchItem } from '../common/NativeBiliApi'
-
-interface NativePlayPayload {
-  bvid: string
-  title: string
-  artist: string
-  coverUrl: string
-  duration: number
-}
 
 @Component
 export struct NativeSearchPage {
-  controller: webview.WebviewController = new webview.WebviewController()
   topInset: number = 0
-  onPlayed: () => void = () => {}
+  onSelect: (item: NativeSearchItem) => void = () => {}
 
   @State private keyword: string = ''
   @State private loading: boolean = false
@@ -44,12 +34,6 @@ export struct NativeSearchPage {
     return this.theme === 'dark' ? '#9A9AA0' : '#8A8A8E'
   }
 
-  private parseDuration(value: string): number {
-    const parts = value.split(':')
-    if (parts.length === 2) return Number(parts[0]) * 60 + Number(parts[1])
-    if (parts.length === 3) return Number(parts[0]) * 3600 + Number(parts[1]) * 60 + Number(parts[2])
-    return 0
-  }
 
   private async search(): Promise<void> {
     const keyword = this.keyword.trim()
@@ -69,17 +53,8 @@ export struct NativeSearchPage {
   }
 
   private play(item: NativeSearchItem): void {
-    const payload: NativePlayPayload = {
-      bvid: item.bvid,
-      title: item.title,
-      artist: item.author,
-      coverUrl: item.pic,
-      duration: this.parseDuration(item.duration),
-    }
-    this.controller.runJavaScript(
-      `window.__biuNativePlay && window.__biuNativePlay(${JSON.stringify(payload)})`
-    ).catch(() => {})
-    this.onPlayed()
+    this.getUIContext().getFocusController().clearFocus()
+    this.onSelect(item)
   }
 
   @Builder

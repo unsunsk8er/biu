@@ -21,6 +21,85 @@ export interface NativeSearchResult {
   pages: number
 }
 
+export interface NativeVideoPage {
+  cid: number
+  page: number
+  part: string
+  duration: number
+}
+
+export interface NativeVideoInfo {
+  bvid: string
+  aid: number
+  title: string
+  cover: string
+  artist: string
+  duration: number
+  cid: number
+  pages: NativeVideoPage[]
+}
+
+export interface NativeAudioSource {
+  url: string
+  backups: string[]
+}
+
+interface BiliPage {
+  cid?: number
+  page?: number
+  part?: string
+  duration?: number
+}
+
+interface BiliViewData {
+  bvid?: string
+  aid?: number
+  title?: string
+  pic?: string
+  duration?: number
+  cid?: number
+  owner?: BiliOwner
+  pages?: BiliPage[]
+}
+
+interface BiliOwner {
+  name?: string
+}
+
+interface BiliViewResponse {
+  code?: number
+  message?: string
+  data?: BiliViewData
+}
+
+interface BiliDashAudio {
+  baseUrl?: string
+  base_url?: string
+  backupUrl?: string[]
+  backup_url?: string[]
+  bandwidth?: number
+}
+
+interface BiliDash {
+  audio?: BiliDashAudio[]
+}
+
+interface BiliDurl {
+  url?: string
+  backup_url?: string[]
+}
+
+interface BiliPlayUrlData {
+  dash?: BiliDash
+  durl?: BiliDurl[]
+}
+
+interface BiliPlayUrlResponse {
+  code?: number
+  message?: string
+  data?: BiliPlayUrlData
+}
+
 interface BiliSearchItem {
   bvid?: string
   aid?: number
@@ -182,6 +261,55 @@ export class NativeBiliApi {
   private normalizePic(value: string): string {
     const pic = String(value || '').replace(/^http:/, 'https:')
     return pic.startsWith('//') ? `https:${pic}` : pic
+  }
+
+  async getVideoInfo(bvid: string): Promise<NativeVideoInfo> {
+    const text = await this.get(`${BILI_API}/x/web-interface/view?bvid=${encodeURIComponent(bvid)}`)
+    const json = JSON.parse(text) as BiliViewResponse
+    if (json.code !== 0 || !json.data) {
+      throw new Error(json.message || `Bilibili view failed (${json.code})`)
+    }
+    const data = json.data
+    const pages: NativeVideoPage[] = (data.pages || []).map((item: BiliPage): NativeVideoPage => {
+      return {
+        cid: Number(item.cid || 0),
+        page: Number(item.page || 0),
+        part: String(item.part || ''),
+        duration: Number(item.duration || 0),
+      }
+    })
+    return {
+      bvid: String(data.bvid || bvid),
+      aid: Number(data.aid || 0),
+      title: String(data.title || ''),
+      cover: this.normalizePic(data.pic || ''),
+      artist: String(data.owner?.name || ''),
+      duration: Number(data.duration || 0),
+      cid: Number(data.cid || pages[0]?.cid || 0),
+      pages,
+    }
+  }
+
+  async getPlayUrl(bvid: string, cid: number): Promise<NativeAudioSource> {
+    const text = await this.get(
+      `${BILI_API}/x/player/playurl?bvid=${encodeURIComponent(bvid)}&cid=${cid}&qn=80&fnval=16&fourk=1`
+    )
+    const json = JSON.parse(text) as BiliPlayUrlResponse
+    if (json.code !== 0 || !json.data) {
+      throw new Error(json.message || `Bilibili playurl failed (${json.code})`)
+    }
+    const audios = json.data.dash?.audio || []
+    let best: BiliDashAudio | undefined
+    for (const item of audios) {
+      if (!best || Number(item.bandwidth || 0) > Number(best.bandwidth || 0)) best = item
+    }
+    const primary = best?.baseUrl || best?.base_url || json.data.durl?.[0]?.url || ''
+    if (!primary) throw new Error('Bilibili playurl returned no audio stream')
+    const backups = best?.backupUrl || best?.backup_url || json.data.durl?.[0]?.backup_url || []
+    return {
+      url: this.normalizePic(primary),
+      backups: backups.map((item: string) => this.normalizePic(item)),
+    }
   }
 
   async searchVideo(keyword: string, page: number = 1, pageSize: number = 20): Promise<NativeSearchResult> {

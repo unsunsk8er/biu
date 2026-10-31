@@ -3,6 +3,8 @@ import { common } from '@kit.AbilityKit';
 import { window } from '@kit.ArkUI';
 import display from '@ohos.display';
 import { BiuBridge } from '../common/BiuBridge';
+import { NativeSearchItem } from '../common/NativeBiliApi';
+import { NativePlayerPage } from './NativePlayerPage';
 import { NativeSearchPage } from './NativeSearchPage';
 import { NativeSettingsPage } from './NativeSettingsPage';
 
@@ -35,6 +37,10 @@ struct Index {
   @State private topInset: number = 0;
   @State private activeTab: string = '/search';
   @State private nativeSearchOpen: boolean = false;
+  @State private nativePlayerOpen: boolean = false;
+  @State private nativeTrack: NativeSearchItem = {
+    bvid: '', aid: 0, title: '', author: '', pic: '', duration: '', play: 0,
+  };
   @StorageLink('biu-theme') private nativeTheme: string = 'light';
 
   aboutToAppear(): void {
@@ -92,6 +98,10 @@ struct Index {
     .backgroundColor(Color.Transparent)
     .stateEffect(false)
     .onClick(() => {
+      if (this.nativePlayerOpen) {
+        this.bridge.cacheAudioFile(`close-${Date.now()}`, 'native-audio://stop');
+        this.nativePlayerOpen = false;
+      }
       if (path === '/search') {
         this.activeTab = path;
         this.nativeSearchOpen = true;
@@ -124,6 +134,12 @@ struct Index {
   }
 
   onBackPress(): boolean {
+    // Native player closes back to the native search results.
+    if (this.nativePlayerOpen) {
+      this.bridge.cacheAudioFile(`back-${Date.now()}`, 'native-audio://stop');
+      this.nativePlayerOpen = false;
+      return true;
+    }
     // Native search closes back to the Web tab underneath.
     if (this.nativeSearchOpen) {
       this.nativeSearchOpen = false;
@@ -182,16 +198,25 @@ struct Index {
           })
         if (this.nativeSearchOpen) {
           NativeSearchPage({
-            controller: this.controller,
             topInset: this.topInset,
-            onPlayed: () => {
-              this.nativeSearchOpen = false;
-              this.activeTab = '/search';
+            onSelect: (item: NativeSearchItem) => {
+              this.nativeTrack = item;
+              this.nativePlayerOpen = true;
             },
           })
         }
         if (this.activeTab === '/settings') {
           NativeSettingsPage({ controller: this.controller, topInset: this.topInset })
+        }
+        if (this.nativePlayerOpen) {
+          NativePlayerPage({
+            bridge: this.bridge,
+            track: this.nativeTrack,
+            topInset: this.topInset,
+            onClose: () => {
+              this.nativePlayerOpen = false;
+            },
+          })
         }
       }
       .width('100%')

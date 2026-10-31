@@ -4,6 +4,17 @@
 
 ## 已完成
 
+### Phase 3：原生播放主链路
+
+- `NativeBiliApi.getVideoInfo()` 获取标题、封面、分P、CID
+- `NativeBiliApi.getPlayUrl()` 获取 DASH 音频流与备份 URL
+- `NativePlayerPage.ets` 原生播放页
+- 原生缓存 → AVTranscoder/AVMuxer → AVPlayer
+- 原生播放/暂停、进度条、时间显示
+- 真机验证：搜索`青花瓷` → 点击结果 → 原生播放页播放到 0:30
+
+当前还没有原生歌词、歌单、下载和迷你播放栏，WebView 仍作为这些页面的 fallback。
+
 ### Phase 2：原生搜索页
 
 - `NativeSearchPage.ets`

@@ -11,15 +11,6 @@ import MediaSessionSync from '@/components/MediaSessionSync'
 import { isAndroidApp, isLargeScreen, isMobileApp } from '@/utils/mobile'
 import { useNowPlaying } from '@/contexts/NowPlayingContext'
 import { useAuth } from '@/contexts/AuthContext'
-import { usePlayer } from '@/contexts/PlayerContext'
-
-interface NativePlayPayload {
-  bvid: string
-  title: string
-  artist: string
-  coverUrl: string
-  duration: number
-}
 
 const MAIN_PAGES = new Set(['/search', '/playlists', '/downloads', '/settings'])
 
@@ -40,8 +31,7 @@ export default function MainLayout() {
   const mobileShell = isMobileApp()
   const [largeScreen, setLargeScreen] = useState(() => mobileShell && isLargeScreen())
   const phone = mobileShell && !largeScreen
-  const { expanded, close, open } = useNowPlaying()
-  const player = usePlayer()
+  const { expanded, close } = useNowPlaying()
 
   useEffect(() => {
     if (!mobileShell) return
@@ -90,31 +80,14 @@ export default function MainLayout() {
   useEffect(() => {
     const bridgeWindow = window as unknown as {
       __biuNavigate?: (path: string) => void
-      __biuNativePlay?: (payload: NativePlayPayload) => void
     }
     bridgeWindow.__biuNavigate = (path: string) => {
       window.setTimeout(() => navigate(path), 0)
     }
-    bridgeWindow.__biuNativePlay = (payload: NativePlayPayload) => {
-      if (!payload?.bvid) return
-      player.playNow({
-        id: payload.bvid,
-        title: payload.title,
-        artist: payload.artist,
-        coverUrl: payload.coverUrl,
-        duration: payload.duration,
-        videoUrl: `https://www.bilibili.com/video/${payload.bvid}`,
-        bvid: payload.bvid,
-        playCount: 0,
-        isLiked: false,
-      })
-      open()
-    }
     return () => {
       if (bridgeWindow.__biuNavigate) delete bridgeWindow.__biuNavigate
-      if (bridgeWindow.__biuNativePlay) delete bridgeWindow.__biuNativePlay
     }
-  }, [navigate, player, open])
+  }, [navigate])
 
   // Android/卓易通 edge-back is delivered to Activity.onBackPressed, which
   // delegates here. Resolve in-app layers first; only the four main tabs send
