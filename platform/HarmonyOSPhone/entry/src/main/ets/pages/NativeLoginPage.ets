@@ -11,6 +11,8 @@ export struct NativeLoginPage {
   @State private qrUrl: string = ''
   @State private status: string = '正在生成二维码'
   @State private success: boolean = false
+  @State private manual: boolean = false
+  @State private cookieInput: string = ''
   @StorageLink('biu-theme') private theme: string = 'light'
   private api: NativeLoginApi = new NativeLoginApi()
   private pollTimer: number = -1
@@ -65,6 +67,19 @@ export struct NativeLoginPage {
     } catch (error) {
       this.status = '网络异常，等待重试'
     }
+  }
+
+  private saveManual(): void {
+    const cookie = this.cookieInput.trim()
+    if (!cookie.includes('SESSDATA=')) {
+      this.status = 'Cookie 中缺少 SESSDATA'
+      return
+    }
+    new NativeBiliApi(getContext(this) as common.UIAbilityContext).saveCookie(cookie)
+    this.success = true
+    this.status = '登录成功'
+    this.stopPolling()
+    this.onSuccess()
   }
 
   private textColor(): string {
@@ -136,6 +151,36 @@ export struct NativeLoginPage {
         .onClick(() => {
           void this.start()
         })
+
+        Button(this.manual ? '收起手动登录' : '手动粘贴 Cookie')
+          .height(32)
+          .fontSize(12)
+          .fontColor(this.mutedColor())
+          .backgroundColor(Color.Transparent)
+          .stateEffect(false)
+          .onClick(() => {
+            this.manual = !this.manual
+          })
+
+        if (this.manual) {
+          TextArea({ placeholder: '粘贴包含 SESSDATA 的完整 Cookie', text: this.cookieInput })
+            .width('100%')
+            .height(110)
+            .fontSize(12)
+            .backgroundColor(this.theme === 'dark' ? '#1C1C1E' : '#FFFFFF')
+            .borderRadius(12)
+            .onChange((value: string) => {
+              this.cookieInput = value
+            })
+          Button('使用 Cookie 登录')
+            .height(36)
+            .fontSize(13)
+            .fontColor('#FFFFFF')
+            .backgroundColor('#FF5C93')
+            .borderRadius(18)
+            .stateEffect(false)
+            .onClick(() => this.saveManual())
+        }
 
       Text('登录用于同步收藏夹和获取更高音质；登录态仅保存在本机')
         .fontSize(11)
