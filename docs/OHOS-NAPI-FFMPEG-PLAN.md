@@ -51,6 +51,19 @@ AVPlayer 播放 faststart 文件仍会立即暂停，说明问题不只是 `moov
 - 暂停是否来自 ArkWeb/JS 的 pause 指令
 - 连续任务与 AVPlayer 的会话生命周期
 
+## 最新定位
+
+真机日志确认：后台任务已成功注册（`hasBackgroundTask: 1`），但暂停来自 JS 侧
+`NativeAudioElement.pause()`，调用栈落在 `PlayerContext` 的 `loadSource` 清理/失败路径，
+不是系统后台任务直接暂停。
+
+下一步应把原生播放从 `PlayerContext` 的 HTML audio 加载/回退时序中解耦：
+
+- 原生播放器独立于 `loadSource` 的超时/回退逻辑
+- 不再通过 `audio.pause()` 控制原生播放器
+- 播放成功事件直接同步 `isPlaying/progress`
+- 仅在切歌/用户暂停时停止原生播放器
+
 ## 后续 ffmpeg 接入点
 
 1. 获取/交叉编译 OHOS arm64 ffmpeg 静态库
