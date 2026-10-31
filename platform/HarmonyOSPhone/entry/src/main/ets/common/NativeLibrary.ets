@@ -9,6 +9,9 @@ export interface NativeTrack {
   coverUrl: string
   duration: number
   localPath?: string
+  cid?: number
+  page?: number
+  partTitle?: string
 }
 
 export interface NativePlaylist {

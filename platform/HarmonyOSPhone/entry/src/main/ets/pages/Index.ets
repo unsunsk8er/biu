@@ -2,7 +2,7 @@ import { common } from '@kit.AbilityKit';
 import { window } from '@kit.ArkUI';
 import display from '@ohos.display';
 import { BiuBridge } from '../common/BiuBridge';
-import { NativeSearchItem } from '../common/NativeBiliApi';
+import { NativeBiliApi, NativeSearchItem, NativeVideoPage } from '../common/NativeBiliApi';
 import { NativeDownload, NativeTrack } from '../common/NativeLibrary';
 import { NativeQueue } from '../common/NativeQueue';
 import { NativeDownloadsPage } from './NativeDownloadsPage';
@@ -29,6 +29,8 @@ struct Index {
   @State private miniVisible: boolean = false;
   @State private miniOpen: boolean = false;
   @State private currentBvid: string = '';
+  @State private currentCid: number = 0;
+  @State private currentPartTitle: string = '';
   @State private currentLocalPath: string = '';
   @State private localTitle: string = '';
   @State private localArtist: string = '';
@@ -51,6 +53,8 @@ struct Index {
   private applyTrack(track: NativeTrack | null): void {
     if (!track) return;
     this.currentBvid = track.localPath ? '' : track.bvid;
+    this.currentCid = track.cid || 0;
+    this.currentPartTitle = track.partTitle || '';
     this.currentLocalPath = track.localPath || '';
     this.localTitle = track.title;
     this.localArtist = track.artist;
@@ -60,6 +64,45 @@ struct Index {
     this.miniCover = track.coverUrl;
     this.miniVisible = true;
     this.miniOpen = true;
+  }
+
+  private async playSearchSelection(item: NativeSearchItem, list: NativeSearchItem[]): Promise<void> {
+    const tracks: NativeTrack[] = list.map((row: NativeSearchItem): NativeTrack => {
+      return {
+        bvid: row.bvid,
+        title: row.title,
+        artist: row.author,
+        coverUrl: row.pic,
+        duration: this.parseDuration(row.duration),
+      };
+    });
+    let index = tracks.findIndex((row: NativeTrack) => row.bvid === item.bvid);
+    if (index < 0) index = 0;
+    try {
+      const api = new NativeBiliApi(getContext(this) as common.UIAbilityContext);
+      const info = await api.getVideoInfo(item.bvid);
+      if (info.pages.length > 1) {
+        const parts: NativeTrack[] = info.pages.map((part: NativeVideoPage): NativeTrack => {
+          return {
+            bvid: info.bvid,
+            title: part.part || info.title,
+            artist: info.artist,
+            coverUrl: info.cover,
+            duration: part.duration,
+            cid: part.cid,
+            page: part.page,
+            partTitle: part.part,
+          };
+        });
+        tracks.splice(index, 1, ...parts);
+      } else {
+        tracks[index].cid = info.cid;
+        tracks[index].duration = info.duration;
+      }
+    } catch (error) {
+      // Fall back to the single result; the player resolves the default part.
+    }
+    this.playQueueTracks(tracks, index);
   }
 
   private playQueueTracks(tracks: NativeTrack[], index: number): void {
@@ -246,18 +289,7 @@ struct Index {
           NativeSearchPage({
             topInset: this.topInset,
             onSelect: (item: NativeSearchItem, list: NativeSearchItem[]) => {
-              const tracks: NativeTrack[] = list.map((row: NativeSearchItem): NativeTrack => {
-                return {
-                  bvid: row.bvid,
-                  title: row.title,
-                  artist: row.author,
-                  coverUrl: row.pic,
-                  duration: this.parseDuration(row.duration),
-                };
-              });
-              let index = tracks.findIndex((row: NativeTrack) => row.bvid === item.bvid);
-              if (index < 0) index = 0;
-              this.playQueueTracks(tracks, index);
+              void this.playSearchSelection(item, list);
             },
           })
         }
@@ -303,6 +335,8 @@ struct Index {
           NativePlayerPage({
             bridge: this.bridge,
             bvid: this.currentBvid,
+            cid: this.currentCid,
+            partTitle: this.currentPartTitle,
             localPath: this.currentLocalPath,
             localTitle: this.localTitle,
             localArtist: this.localArtist,

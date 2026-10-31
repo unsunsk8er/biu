@@ -25,6 +25,8 @@ function formatTime(seconds: number): string {
 export struct NativePlayerPage {
   bridge: BiuBridge = new BiuBridge(getContext(this) as common.UIAbilityContext)
   @Prop @Watch('onBvidChange') bvid: string = ''
+  @Prop @Watch('onCidChange') cid: number = 0
+  @Prop partTitle: string = ''
   @Prop @Watch('onLocalChange') localPath: string = ''
   @Prop localTitle: string = ''
   @Prop localArtist: string = ''
@@ -55,11 +57,26 @@ export struct NativePlayerPage {
   private library: NativeLibrary = new NativeLibrary(getContext(this) as common.UIAbilityContext)
   private requestId: string = ''
   private playable: boolean = false
+  private loadPending: boolean = false
 
   onBvidChange(): void {
     if (this.localPath || !this.bvid) return
-    this.resetForLoad()
-    void this.load()
+    this.scheduleLoad()
+  }
+
+  onCidChange(): void {
+    if (this.localPath || !this.bvid) return
+    this.scheduleLoad()
+  }
+
+  private scheduleLoad(): void {
+    if (this.loadPending) return
+    this.loadPending = true
+    setTimeout(() => {
+      this.loadPending = false
+      this.resetForLoad()
+      void this.load()
+    }, 0)
   }
 
   onLocalChange(): void {
@@ -189,29 +206,33 @@ export struct NativePlayerPage {
     try {
       const api = new NativeBiliApi(getContext(this) as common.UIAbilityContext)
       const info = await api.getVideoInfo(this.bvid)
-      this.title = info.title
+      const playCid = this.cid > 0 ? this.cid : info.cid
+      const title = this.partTitle ? `${info.title} · ${this.partTitle}` : info.title
+      this.title = title
       this.artist = info.artist
       this.cover = info.cover
       if (info.duration > 0) this.duration = info.duration
       this.favorite = this.library.isFavorite(info.bvid)
       this.library.addRecent({
         bvid: info.bvid,
-        title: info.title,
+        title,
         artist: info.artist,
         coverUrl: info.cover,
         duration: info.duration,
+        cid: playCid,
+        partTitle: this.partTitle,
       })
-      this.bridge.setMediaSession(info.bvid, info.title, info.artist, '', info.cover, '', info.duration)
+      this.bridge.setMediaSession(info.bvid, title, info.artist, '', info.cover, '', info.duration)
       this.notify()
-      const source = await api.getPlayUrl(info.bvid, info.cid)
+      const source = await api.getPlayUrl(info.bvid, playCid)
       this.requestId = `native-player-${Date.now()}`
       this.bridge.cacheAudioFile(
         this.requestId,
         source.url,
-        `${info.bvid}_${info.cid}`
+        `${info.bvid}_${playCid}`
       )
-      void this.loadLyrics(info.title, info.artist, info.duration)
-      void this.loadCover(info.title, info.artist)
+      void this.loadLyrics(title, info.artist, info.duration)
+      void this.loadCover(title, info.artist)
     } catch (error) {
       this.loading = false
       this.error = '加载失败，请检查网络'
