@@ -75,6 +75,8 @@ interface PlayerProgress {
   progress: number
   duration: number
   setProgress: (p: number) => void
+  previewProgress: (p: number) => void
+  commitProgress: (p: number) => void
 }
 
 type PlayerContext = PlayerState & PlayerActions
@@ -255,6 +257,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const backgroundRecoveryRef = useRef(false)
   const nativeReloadRef = useRef<() => boolean>(() => false)
   const harmonyReadyRef = useRef(false)
+  const seekingRef = useRef(false)
 
   const showToast = useCallback((msg: string) => {
     setToast(msg)
@@ -1009,6 +1012,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     const track = currentTrack
     let cancelled = false
     harmonyReadyRef.current = false
+    seekingRef.current = false
     const startProgress = progressRef.current > 0 ? progressRef.current : 0
     setLoadingAudio(true)
     setIsPlaying(true)
@@ -1023,7 +1027,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         setIsPlaying(false)
       } else if (event.type === 'time') {
         harmonyReadyRef.current = true
-        setProgress(event.time)
+        if (!seekingRef.current) setProgress(event.time)
         if (event.duration > 0) setDuration(event.duration)
         setLoadingAudio(false)
       } else if (event.type === 'duration') {
@@ -1305,7 +1309,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setIsPlaying(true)
   }, [isShuffled, queue, currentTrack])
 
-  const handleSetProgress = useCallback((p: number) => {
+  const handlePreviewProgress = useCallback((p: number) => {
+    seekingRef.current = true
+    setProgress(p)
+  }, [])
+
+  const handleCommitProgress = useCallback((p: number) => {
+    seekingRef.current = false
     if (HARMONY_NATIVE_AUDIO_ENABLED && isHarmonyApp()) {
       harmonySeek(p)
     } else if (audioRef.current) {
@@ -1313,6 +1323,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     }
     setProgress(p)
   }, [])
+
+  const handleSetProgress = handleCommitProgress
 
   const handleSetVolume = useCallback((v: number) => {
     setVolumeState(v)
@@ -1901,7 +1913,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     progress,
     duration,
     setProgress: handleSetProgress,
-  }), [progress, duration, handleSetProgress])
+    previewProgress: handlePreviewProgress,
+    commitProgress: handleCommitProgress,
+  }), [progress, duration, handleSetProgress, handlePreviewProgress, handleCommitProgress])
 
   return (
     <PlayerContext.Provider value={value}>

@@ -566,7 +566,7 @@ export default function NowPlaying() {
 }
 
 function NowPlayingProgress({ trackDuration }: { trackDuration: number }) {
-  const { progress, duration: liveDuration, setProgress } = usePlayerProgress()
+  const { progress, duration: liveDuration, previewProgress, commitProgress } = usePlayerProgress()
   const duration = liveDuration || trackDuration
   return (
     <div className="now-playing-progress now-playing-ui" style={sliderTheme}>
@@ -574,7 +574,8 @@ function NowPlayingProgress({ trackDuration }: { trackDuration: number }) {
         ariaLabel="播放进度"
         value={progress}
         max={duration}
-        onChange={setProgress}
+        onChange={previewProgress}
+        onCommit={commitProgress}
         disabled={duration <= 0}
         formatValue={formatTime}
         variant="progress"

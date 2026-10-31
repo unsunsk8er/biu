@@ -1,10 +1,11 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 export interface PlayerSliderProps {
   ariaLabel: string
   value: number
   max: number
   onChange: (value: number) => void
+  onCommit?: (value: number) => void
   min?: number
   step?: number
   width?: number | string
@@ -21,6 +22,7 @@ export default function PlayerSlider({
   value,
   max,
   onChange,
+  onCommit,
   min = 0,
   step,
   width = '100%',
@@ -29,6 +31,7 @@ export default function PlayerSlider({
   variant,
 }: PlayerSliderProps) {
   const trackRef = useRef<HTMLDivElement>(null)
+  const latestValueRef = useRef(value)
   const [isHovered, setIsHovered] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
   const safeMax = Math.max(max, min)
@@ -43,15 +46,22 @@ export default function PlayerSlider({
     const rect = trackRef.current?.getBoundingClientRect()
     if (!rect || rect.width <= 0) return
     const nextPercent = clamp((clientX - rect.left) / rect.width, 0, 1)
-    onChange(min + nextPercent * valueRange)
+    const next = min + nextPercent * valueRange
+    latestValueRef.current = next
+    onChange(next)
   }, [disabled, min, onChange, valueRange])
+
+  useEffect(() => {
+    latestValueRef.current = value
+  }, [value])
 
   const handlePointerUp = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
     setIsDragging(false)
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId)
     }
-  }, [])
+    onCommit?.(latestValueRef.current)
+  }, [onCommit])
 
   return (
     <div
@@ -85,12 +95,14 @@ export default function PlayerSlider({
         if (event.key === 'Home') {
           event.preventDefault()
           onChange(min)
+          onCommit?.(min)
           return
         }
 
         if (event.key === 'End') {
           event.preventDefault()
           onChange(safeMax)
+          onCommit?.(safeMax)
           return
         }
 
@@ -102,7 +114,9 @@ export default function PlayerSlider({
 
         if (direction !== 0) {
           event.preventDefault()
-          onChange(clamp(clampedValue + direction * keyboardStep, min, safeMax))
+          const next = clamp(clampedValue + direction * keyboardStep, min, safeMax)
+          onChange(next)
+          onCommit?.(next)
         }
       }}
       style={{
