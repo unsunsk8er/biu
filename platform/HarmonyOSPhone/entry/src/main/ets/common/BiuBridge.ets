@@ -4,6 +4,7 @@ import { http } from '@kit.NetworkKit';
 import { avSession } from '@kit.AVSessionKit';
 import { image } from '@kit.ImageKit';
 import { fileIo } from '@kit.CoreFileKit';
+import { media } from '@kit.MediaKit';
 
 /**
  * ArkWeb enforces CORS for renderer fetches. All api/passport requests are
@@ -100,9 +101,79 @@ export class BiuBridge {
         fileIo.OpenMode.CREATE | fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.TRUNC);
       fileIo.writeSync(file.fd, buffer);
       fileIo.closeSync(file);
-      this.emitAudioFile(requestId, `file://${path}`);
+      const playable = await this.transcodeAudioFile(requestId, path);
+      this.emitAudioFile(requestId, `file://${playable}`);
     } catch (error) {
       this.emitAudioFile(requestId, '');
+    }
+  }
+
+  /**
+   * Bilibili DASH audio is fragmented MP4. AVPlayer cannot open the .m4s
+   * segment directly (EXTERNAL_RENDERER_FAILED), so transcode it to a standard
+   * M4A file that the native player can use in the background.
+   */
+  private async transcodeAudioFile(requestId: string, sourcePath: string): Promise<string> {
+    const targetPath = `${this.context.cacheDir}/biu-audio-${requestId}.m4a`;
+    let sourceFile: fileIo.File | undefined;
+    let targetFile: fileIo.File | undefined;
+    let transcoder: media.AVTranscoder | undefined;
+    try {
+      sourceFile = fileIo.openSync(sourcePath, fileIo.OpenMode.READ_ONLY);
+      targetFile = fileIo.openSync(targetPath,
+        fileIo.OpenMode.CREATE | fileIo.OpenMode.READ_WRITE | fileIo.OpenMode.TRUNC);
+      transcoder = await media.createAVTranscoder();
+      transcoder.fdSrc = { fd: sourceFile.fd };
+      transcoder.fdDst = targetFile.fd;
+
+      const completed = new Promise<void>((resolve, reject) => {
+        const timer = setTimeout(() => {
+          reject(new Error('audio transcode timeout'));
+        }, 90000);
+        transcoder!.on('complete', () => {
+          clearTimeout(timer);
+          resolve();
+        });
+        transcoder!.on('error', (error: Error) => {
+          clearTimeout(timer);
+          reject(error);
+        });
+      });
+
+      await transcoder.prepare({
+        fileFormat: media.ContainerFormatType.CFT_MPEG_4A,
+        audioCodec: media.CodecMimeType.AUDIO_AAC,
+        audioBitrate: 192000
+      });
+      await transcoder.start();
+      await completed;
+      return targetPath;
+    } catch (error) {
+      // Keep the old raw-cache fallback for devices whose transcoder rejects
+      // the source; foreground HTML audio can still play it.
+      return sourcePath;
+    } finally {
+      if (transcoder) {
+        try {
+          await transcoder.release();
+        } catch (error) {
+          // ignore release failure
+        }
+      }
+      if (targetFile) {
+        try {
+          fileIo.closeSync(targetFile);
+        } catch (error) {
+          // ignore close failure
+        }
+      }
+      if (sourceFile) {
+        try {
+          fileIo.closeSync(sourceFile);
+        } catch (error) {
+          // ignore close failure
+        }
+      }
     }
   }
 

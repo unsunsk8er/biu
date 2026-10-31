@@ -739,15 +739,33 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
         let loaded = false
         let lastError: unknown = null
-        for (const [attempt, url] of candidateUrls(source).slice(0, 6).entries()) {
-          if (cancelled) return
+
+        // HarmonyOS: ArkWeb pauses HTML <audio> when the ability goes to the
+        // background. Download + transcode once, then let the native AVPlayer
+        // take over the local M4A so playback survives Home.
+        if (isHarmonyApp() && source.audioUrl) {
           try {
-            await loadSource(url, attempt)
+            const fileUrl = await cacheHarmonyAudio(source.audioUrl)
+            await loadSource(fileUrl, 0)
             if (cancelled) return
             loaded = true
-            break
+            source = { ...source, audioUrl: fileUrl, backupUrls: [] }
           } catch (err) {
             lastError = err
+          }
+        }
+
+        if (!loaded) {
+          for (const [attempt, url] of candidateUrls(source).slice(0, 6).entries()) {
+            if (cancelled) return
+            try {
+              await loadSource(url, attempt)
+              if (cancelled) return
+              loaded = true
+              break
+            } catch (err) {
+              lastError = err
+            }
           }
         }
 

@@ -16,7 +16,7 @@ const productionCsp = [
   harmonyBuild ? "script-src 'self' 'unsafe-inline'" : "script-src 'self'",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https:",
-  "media-src 'self' blob: https:",
+  "media-src 'self' blob: https:" + (harmonyBuild ? " file:" : ""),
   "connect-src 'self' https:",
   "font-src 'self' data:",
   "object-src 'none'",
