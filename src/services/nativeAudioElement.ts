@@ -25,6 +25,7 @@ class NativeAudioElement extends EventTarget {
   private _readyState = 0
   private _error: { code: number; message: string } | null = null
   private requestSeq = 0
+  private suppressControlUntil = 0
 
   constructor() {
     super()
@@ -59,6 +60,7 @@ class NativeAudioElement extends EventTarget {
       return
     }
     this._paused = false
+    this.suppressControlUntil = Date.now() + 5000
     this.command('play', next)
   }
 
@@ -93,6 +95,7 @@ class NativeAudioElement extends EventTarget {
   }
 
   pause(): void {
+    if (Date.now() < this.suppressControlUntil) return
     this._paused = true
     this.command('pause')
     this.dispatchEvent(new Event('pause'))
@@ -104,6 +107,7 @@ class NativeAudioElement extends EventTarget {
 
   removeAttribute(name: string): void {
     if (name.toLowerCase() !== 'src') return
+    if (Date.now() < this.suppressControlUntil) return
     this._src = ''
     this._currentTime = 0
     this._duration = 0
