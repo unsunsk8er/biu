@@ -4,6 +4,14 @@
 
 ## 已完成
 
+### Phase 1.5：原生数据层
+
+- `NativeBiliApi.ets`
+- ArkTS 原生 HTTP 请求
+- WBI 签名（nav 取 key、MD5、参数签名）
+- Cookie 持久化，并可从当前 WebView Cookie jar 迁移
+- 原生搜索接口已验证：`青花瓷` 返回 3 条结果 / 总计 1000
+
 ### Phase 1：原生基础验证
 
 - 新增 `NativeSettingsPage.ets`
